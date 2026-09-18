@@ -1,7 +1,7 @@
 export const landingTranslations = {
   de: {
     heroTitle: "Behalte deine Finanzen im Griff",
-    heroSubtitle: "Dein Kontostand zeigt, wie viel Geld da ist — nicht, wie viel davon schon vergeben ist. Kakeibo teilt dein Geld zuerst in Budgets auf, damit die Zahl, die du siehst, auch die ist, die du wirklich ausgeben kannst.",
+    heroSubtitle: "Eine persönliche Budget-App nach der japanischen Kakeibo-Methode — für Geld, das aufgeteilt ist, bevor du es ausgibst. Dein Kontostand zeigt nur, wie viel da ist. Kakeibo zeigt, wie viel davon wirklich frei ist.",
     startDemo: "Ohne Konto ausprobieren",
     loginBtn: "Anmelden",
     registerBtn: "Registrieren",
@@ -80,7 +80,7 @@ export const landingTranslations = {
   },
   en: {
     heroTitle: "Take control of your finances",
-    heroSubtitle: "Your balance shows how much money is there, not how much of it is already spoken for. Kakeibo splits your money into budgets first, so the number you're looking at is the one you can actually spend.",
+    heroSubtitle: "A personal budgeting app built on the Japanese kakeibo method, for dividing your money up before you spend it. Your balance only shows how much is there. Kakeibo shows how much of it is actually free.",
     startDemo: "Try without an account",
     loginBtn: "Log In",
     registerBtn: "Sign Up",
@@ -165,7 +165,7 @@ export const landingTranslations = {
   },
   es: {
     heroTitle: "Toma el control de tus finanzas",
-    heroSubtitle: "Tu saldo muestra cuánto dinero hay, no cuánto de eso ya está comprometido. Kakeibo reparte tu dinero en presupuestos primero, para que la cifra que ves sea la que de verdad puedes gastar.",
+    heroSubtitle: "Una app de presupuesto personal basada en el método japonés kakeibo, para repartir tu dinero antes de gastarlo. Tu saldo solo muestra cuánto hay. Kakeibo muestra cuánto de eso está realmente libre.",
     startDemo: "Probar sin cuenta",
     loginBtn: "Iniciar sesión",
     registerBtn: "Registrarse",
@@ -250,7 +250,7 @@ export const landingTranslations = {
   },
   fr: {
     heroTitle: "Prenez le contrôle de vos finances",
-    heroSubtitle: "Ton solde indique combien d'argent il y a, pas ce qui est déjà engagé. Kakeibo répartit ton argent en budgets d'abord, pour que le chiffre que tu vois soit celui que tu peux vraiment dépenser.",
+    heroSubtitle: "Une application de budget personnel basée sur la méthode japonaise du kakeibo, pour répartir ton argent avant de le dépenser. Ton solde indique seulement combien il y a. Kakeibo montre combien est vraiment libre.",
     startDemo: "Essayer sans compte",
     loginBtn: "Connexion",
     registerBtn: "S'inscrire",
@@ -335,7 +335,7 @@ export const landingTranslations = {
   },
   it: {
     heroTitle: "Prendi il controllo delle tue finanze",
-    heroSubtitle: "Il saldo dice quanti soldi ci sono, non quanto è già impegnato. Kakeibo divide i tuoi soldi in budget prima che tu li spenda, così il numero che vedi è quello che puoi davvero spendere.",
+    heroSubtitle: "Un'app di budget personale basata sul metodo giapponese kakeibo, per dividere i tuoi soldi prima di spenderli. Il tuo saldo mostra solo quanto c'è. Kakeibo mostra quanto è davvero libero.",
     startDemo: "Prova senza account",
     loginBtn: "Accedi",
     registerBtn: "Registrati",
