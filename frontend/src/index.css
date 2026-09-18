@@ -1,0 +1,220 @@
+@import '@fontsource/plus-jakarta-sans/400.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/manrope/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Manrope', sans-serif;
+
+  --font-amount: 'Inter', 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+
+  background-color: hsl(var(--background));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-amount);
+  font-feature-settings: "tnum" 1, "cv01" 1, "cv02" 1;
+  letter-spacing: -0.01em;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  backdrop-filter: blur(24px) saturate(200%);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6px 24px rgba(6, 40, 29, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.dark .glass {
+  background: rgba(14, 26, 21, 0.38);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.glass-header {
+  background: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 6px 20px rgba(6, 40, 29, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+.dark .glass-header {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+.glass-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top);
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    hsl(var(--background)) 0%,
+    hsl(var(--background) / 0.78) 40%,
+    hsl(var(--background) / 0.34) 72%,
+    hsl(var(--background) / 0) 100%
+  );
+}
+
+.segmented-track {
+  background-color: hsl(213 27% 90%);
+}
+.dark .segmented-track {
+  background-color: hsl(217 33% 20%);
+}
+
+.glass-fab {
+  background: rgba(255, 255, 255, 0.22);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 10px 30px rgba(6, 40, 29, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.06);
+}
+.dark .glass-fab {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.30),
+    inset 0 -6px 14px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: hsl(var(--background)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass-header { background: hsl(var(--card)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .dark .glass-header { background: hsl(var(--card)); }
+  .glass-fab { background: hsl(var(--muted)); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 158 57% 14%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 158 57% 14%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 347 77% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 158 57% 14%;
+    --radius: 0.75rem;
+
+    --kbo-bg: 150 30% 98%;
+    --kbo-panel: 0 0% 100%;
+    --kbo-text: 158 45% 10%;
+    --kbo-muted: 160 12% 36%;
+    --kbo-line: 155 20% 87%;
+    --kbo-accent: 160 74% 21%;
+    --kbo-accent-fg: 0 0% 100%;
+    --kbo-accent-soft: 160 60% 26%;
+    --kbo-glow: rgba(13, 92, 67, 0.12);
+    --kbo-grid: rgba(6, 40, 29, 0.07);
+  }
+
+  .dark {
+    --background: 222 47% 2%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 6%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 6%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 158 57% 30%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 158 57% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 347 77% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 160 84% 39%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 158 57% 30%;
+
+    --kbo-bg: 160 30% 4%;
+    --kbo-panel: 162 26% 7%;
+    --kbo-text: 150 30% 97%;
+    --kbo-muted: 160 12% 63%;
+    --kbo-line: 160 15% 18%;
+    --kbo-accent: 157 68% 55%;
+    --kbo-accent-fg: 160 60% 5%;
+    --kbo-accent-soft: 157 70% 71%;
+    --kbo-glow: rgba(61, 220, 151, 0.18);
+    --kbo-grid: rgba(255, 255, 255, 0.05);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply bg-background;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+@media (hover: none) {
+  button, a, [role="button"] { -webkit-tap-highlight-color: transparent; }
+}
