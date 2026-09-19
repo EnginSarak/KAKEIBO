@@ -35,7 +35,7 @@ const heroGlow = {
 };
 
 const mintWash = {
-  background: "radial-gradient(circle at 25% 15%, var(--kbo-glow), transparent 60%)",
+  background: "radial-gradient(ellipse 42% 42% at 42% 32%, var(--kbo-glow), transparent 100%)",
 };
 
 const spring = { type: "spring", stiffness: 220, damping: 26 };
@@ -104,8 +104,7 @@ function AppShowcase({ t, app, currency, reduce }) {
       transition={{ ...spring, damping: 30 }}
       className="relative mx-auto w-full max-w-6xl"
     >
-      <div className="absolute -inset-12 rounded-[5rem] blur-3xl" style={heroGlow} aria-hidden="true" />
-      <div className="absolute -inset-8 rounded-[4rem] blur-2xl" style={mintWash} aria-hidden="true" />
+      <div className="absolute -inset-12 blur-3xl" style={mintWash} aria-hidden="true" />
       <div className="pointer-events-none relative select-none overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-white/75 via-kbo-accent/[0.08] to-kbo-accent/[0.16] p-4 shadow-[0_45px_120px_-35px_rgba(6,40,29,0.55)] backdrop-blur-2xl dark:border-white/15 dark:from-white/[0.14] dark:via-kbo-accent/[0.06] dark:to-white/[0.03] sm:p-6">
         <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-white/80 to-transparent dark:from-white/[0.12]" aria-hidden="true" />
         <div
@@ -258,7 +257,7 @@ function RemainderMoment({ t, app, currency, reduce }) {
         transition={spring}
         className="relative"
       >
-        <div className="absolute -inset-8 rounded-[3rem] blur-2xl" style={mintWash} aria-hidden="true" />
+        <div className="absolute -inset-12 blur-3xl" style={mintWash} aria-hidden="true" />
         <div className="pointer-events-none relative select-none overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white/70 via-kbo-panel/55 to-kbo-panel/25 p-3 shadow-[0_30px_80px_-30px_rgba(6,40,29,0.45)] backdrop-blur-2xl dark:border-white/12 dark:from-white/[0.12] dark:via-white/[0.05] dark:to-white/[0.02]">
           <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/70 to-transparent dark:from-white/10" aria-hidden="true" />
           <div
@@ -375,10 +374,10 @@ export function LandingPage({ onStartDemo, onLogin, onSignup, language, onChange
             initial={reduce ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...spring, delay: 0.06 }}
-            className="font-heading text-[2.75rem] font-extrabold leading-[1.08] tracking-tight sm:text-6xl md:text-7xl lg:text-[5.5rem]"
+            className="font-heading text-[2.75rem] font-extrabold leading-[1.16] tracking-tight sm:text-6xl sm:leading-[1.16] md:text-7xl md:leading-[1.16] lg:text-[5.5rem] lg:leading-[1.16]"
           >
             <span className="block text-kbo-text">{t.heroTitleA}</span>
-            <span className="block bg-gradient-to-r from-kbo-text to-kbo-accent bg-clip-text pb-2 text-transparent">
+            <span className="block bg-gradient-to-r from-kbo-text to-kbo-accent bg-clip-text pb-3 text-transparent">
               {t.heroTitleB}
             </span>
           </motion.h1>
