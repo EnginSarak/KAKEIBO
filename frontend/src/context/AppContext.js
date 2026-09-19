@@ -285,13 +285,6 @@ export function AppProvider({ children }) {
     setSettings((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  const toggleTheme = useCallback(() => {
-    setSettings((prev) => {
-      const current = prev.theme === 'system' ? getSystemTheme() : prev.theme;
-      return { ...prev, theme: current === 'dark' ? 'light' : 'dark' };
-    });
-  }, []);
-
   const handleLogout = useCallback(async () => {
     try {
       await logOut();
@@ -696,7 +689,7 @@ export function AppProvider({ children }) {
     settings, loading,
     accounts, budgets, transactions,
     totalBalance, expenseBudgets, accumulatingBudgets, expenseBudgetsTotal, accumulatingBudgetsTotal,
-    t, updateSettings, toggleTheme,
+    t, updateSettings,
     createAccount, updateAccount, deleteAccount, reorderAccounts, getAccountById,
     createBudget, updateBudget, deleteBudget, reorderBudgets, resetBudget, getBudgetById, setBudgetCarryover,
     createTransaction, updateTransaction, deleteTransaction, getTransactionsForAccount, getTransactionsForBudget,

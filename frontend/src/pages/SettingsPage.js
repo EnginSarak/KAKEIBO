@@ -50,7 +50,7 @@ import { currencyNames } from "../lib/currency";
 import { toast } from "sonner";
 
 export function SettingsPage({ onBack, onExitDemo }) {
-  const { t, settings, updateSettings, toggleTheme, isDemo, user, logout } = useApp();
+  const { t, settings, updateSettings, isDemo, user, logout } = useApp();
   
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
