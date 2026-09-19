@@ -66,7 +66,12 @@ function PillButton({ children, onClick, variant = "primary", className, testId 
 
 function Panel({ title, children, className }) {
   return (
-    <div className={cn("rounded-2xl border border-kbo-line bg-background p-4 sm:p-5", className)}>
+    <div
+      className={cn(
+        "rounded-2xl border border-white/70 bg-background/80 p-4 shadow-[0_10px_30px_-18px_rgba(6,40,29,0.4)] backdrop-blur-xl dark:border-white/10 sm:p-5",
+        className
+      )}
+    >
       {title && <h3 className="mb-3 font-heading text-sm font-semibold text-foreground">{title}</h3>}
       {children}
     </div>
@@ -75,18 +80,20 @@ function Panel({ title, children, className }) {
 
 function AppShowcase({ t, app, currency, reduce }) {
   const expenseBudgets = [
-    { id: "sw1", name: t.exampleBudget1, amount: 450, spent: 138, carried_over: 0, color: "#0d5c43" },
-    { id: "sw2", name: t.exampleBudget2, amount: 200, spent: 42, carried_over: 0, color: "#0f7a58" },
-    { id: "sw3", name: t.exampleBudget4, amount: 180, spent: 63, carried_over: 0, color: "#12a074" },
+    { id: "sw1", name: t.exampleBudget1, budget_type: "expense", amount: 520, spent: 143, carried_over: 0, color: "#ea7317" },
+    { id: "sw2", name: t.exampleBudget2, budget_type: "expense", amount: 240, spent: 212, carried_over: 0, color: "#7c3aed" },
+    { id: "sw3", name: t.exampleBudget4, budget_type: "expense", amount: 190, spent: 95, carried_over: 0, color: "#1d4ed8" },
   ];
   const savingBudgets = [
-    { id: "sv1", name: t.exampleBudget3, amount: 1200, spent: 0, carried_over: 340, color: "#1fc38d" },
+    { id: "sv1", name: t.exampleBudget3, budget_type: "accumulating", amount: 200, spent: 0, carried_over: 1670, color: "#0f766e" },
+    { id: "sv2", name: t.exampleBudget6, budget_type: "accumulating", amount: 180, spent: 0, carried_over: 1240, color: "#b45309" },
+    { id: "sv3", name: t.exampleBudget5, budget_type: "accumulating", amount: 120, spent: 0, carried_over: 640, color: "#dc2626" },
   ];
   const transactions = [
     { id: "tx1", name: t.exampleTx1, amount: 62.4, transaction_type: "expense", budget_id: null, date: "2026-07-24" },
     { id: "tx2", name: t.exampleTx2, amount: 48, transaction_type: "expense", budget_id: null, date: "2026-07-23" },
     { id: "tx3", name: t.exampleTx3, amount: 24, transaction_type: "expense", budget_id: null, date: "2026-07-22" },
-    { id: "tx4", name: t.exampleTx4, amount: 2400, transaction_type: "income", budget_id: null, date: "2026-07-01" },
+    { id: "tx4", name: t.exampleTx4, amount: 3000, transaction_type: "income", budget_id: null, date: "2026-07-01" },
   ];
 
   return (
@@ -95,17 +102,29 @@ function AppShowcase({ t, app, currency, reduce }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.04 }}
       transition={{ ...spring, damping: 30 }}
-      className="relative mx-auto w-full max-w-[1180px]"
+      className="relative mx-auto w-full max-w-6xl"
     >
-      <div className="absolute -inset-4 rounded-[3rem]" style={mintWash} aria-hidden="true" />
-      <div className="pointer-events-none relative select-none rounded-3xl border border-kbo-line bg-kbo-panel/60 p-3 backdrop-blur-sm sm:p-4">
-        <div className="grid gap-3 lg:grid-cols-12 lg:gap-4">
-          <div className="space-y-3 lg:col-span-7">
-            <Panel>
+      <div className="absolute -inset-12 rounded-[5rem] blur-3xl" style={heroGlow} aria-hidden="true" />
+      <div className="absolute -inset-8 rounded-[4rem] blur-2xl" style={mintWash} aria-hidden="true" />
+      <div className="pointer-events-none relative select-none overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-white/75 via-kbo-accent/[0.08] to-kbo-accent/[0.16] p-4 shadow-[0_45px_120px_-35px_rgba(6,40,29,0.55)] backdrop-blur-2xl dark:border-white/15 dark:from-white/[0.14] dark:via-kbo-accent/[0.06] dark:to-white/[0.03] sm:p-6">
+        <div className="absolute inset-x-0 top-0 h-56 bg-gradient-to-b from-white/80 to-transparent dark:from-white/[0.12]" aria-hidden="true" />
+        <div
+          className="absolute -top-1/3 left-[-25%] h-[180%] w-1/2 rotate-[18deg] bg-gradient-to-r from-transparent via-white/70 to-transparent blur-2xl dark:via-white/[0.12]"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent dark:via-white/50"
+          aria-hidden="true"
+        />
+        <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/60 dark:ring-white/10" aria-hidden="true" />
+
+        <div className="relative grid gap-3 lg:grid-cols-12 lg:gap-4">
+          <div className="flex flex-col space-y-3 lg:col-span-7">
+            <Panel className="flex-1">
               <div className="rounded-2xl bg-gradient-to-br from-[#0d5c43] to-[#0f7a58] p-5">
                 <p className="text-xs font-medium text-white/80">{app.totalBalance}</p>
                 <p className="mt-1 font-heading text-3xl font-bold tabular-nums text-white sm:text-4xl">
-                  <AnimatedNumber value={2450} format={(v) => formatCurrency(v, currency)} duration={900} />
+                  <AnimatedNumber value={4685} format={(v) => formatCurrency(v, currency)} duration={900} />
                 </p>
               </div>
               <h3 className="mb-2 mt-5 font-heading text-sm font-semibold text-foreground">{app.expenseBudgets}</h3>
@@ -123,7 +142,7 @@ function AppShowcase({ t, app, currency, reduce }) {
             </Panel>
           </div>
 
-          <div className="space-y-3 lg:col-span-5">
+          <div className="flex flex-col space-y-3 lg:col-span-5">
             <Panel title={app.recentTransactions}>
               <div className="divide-y divide-border">
                 {transactions.map((transaction) => (
@@ -131,11 +150,11 @@ function AppShowcase({ t, app, currency, reduce }) {
                 ))}
               </div>
             </Panel>
-            <Panel title={app.pendingRemainder}>
+            <Panel title={app.pendingRemainder} className="flex flex-1 flex-col">
               <p className="font-heading text-2xl font-bold tabular-nums text-foreground">
                 {formatCurrency(45, currency)}
               </p>
-              <div className="mt-3 space-y-2">
+              <div className="mb-3 mt-3 space-y-2">
                 {[
                   { name: t.exampleBudget3, value: 30 },
                   { name: t.exampleBudget2, value: 15 },
@@ -151,7 +170,7 @@ function AppShowcase({ t, app, currency, reduce }) {
                   </div>
                 ))}
               </div>
-              <div className="mt-3 rounded-full bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">
+              <div className="mt-auto rounded-full bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground">
                 {app.redistribute}
               </div>
             </Panel>
@@ -209,11 +228,12 @@ function RemainderMoment({ t, app, currency, reduce }) {
   const leftoverBudget = {
     id: "rm1",
     name: t.exampleBudget1,
+    budget_type: "expense",
     amount: 450,
     spent: 405,
     carried_over: 0,
     pending_remainder: 45,
-    color: "#0d5c43",
+    color: "#ea7317",
   };
 
   return (
@@ -232,9 +252,15 @@ function RemainderMoment({ t, app, currency, reduce }) {
         transition={spring}
         className="relative"
       >
-        <div className="absolute -inset-6 rounded-[2.5rem]" style={mintWash} aria-hidden="true" />
-        <div className="pointer-events-none relative select-none rounded-3xl border border-kbo-line bg-kbo-panel/60 p-3">
-          <div className="rounded-2xl bg-background p-4 sm:p-5">
+        <div className="absolute -inset-8 rounded-[3rem] blur-2xl" style={mintWash} aria-hidden="true" />
+        <div className="pointer-events-none relative select-none overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-white/70 via-kbo-panel/55 to-kbo-panel/25 p-3 shadow-[0_30px_80px_-30px_rgba(6,40,29,0.45)] backdrop-blur-2xl dark:border-white/12 dark:from-white/[0.12] dark:via-white/[0.05] dark:to-white/[0.02]">
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/70 to-transparent dark:from-white/10" aria-hidden="true" />
+          <div
+            className="absolute -top-1/3 left-[-20%] h-[180%] w-2/5 rotate-[18deg] bg-gradient-to-r from-transparent via-white/45 to-transparent blur-2xl dark:via-white/[0.09]"
+            aria-hidden="true"
+          />
+          <div className="absolute inset-0 rounded-3xl ring-1 ring-inset ring-white/50 dark:ring-white/10" aria-hidden="true" />
+          <div className="relative rounded-2xl bg-background p-4 sm:p-5">
             <BudgetCard budget={leftoverBudget} />
             <div className="mt-4 rounded-2xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground">{app.pendingRemainder}</p>
@@ -382,7 +408,7 @@ export function LandingPage({ onStartDemo, onLogin, onSignup, language, onChange
         </div>
       </section>
 
-      <section className="relative px-4 pb-20 pt-6 sm:pb-28">
+      <section className="relative px-3 pb-20 pt-6 sm:px-4 sm:pb-28">
         <AppShowcase t={t} app={app} currency={currency} reduce={reduce} />
       </section>
 
