@@ -121,7 +121,13 @@ function AppShowcase({ t, app, currency, reduce }) {
         <div className="relative grid gap-3 lg:grid-cols-12 lg:gap-4">
           <div className="flex flex-col space-y-3 lg:col-span-7">
             <Panel className="flex-1">
-              <div className="rounded-2xl bg-gradient-to-br from-[#0d5c43] to-[#0f7a58] p-5">
+              <div
+                className="rounded-[22px] bg-gradient-to-br from-[#0d5c43] to-[#0f7a58] p-5"
+                style={{
+                  boxShadow:
+                    "0 18px 34px -12px rgba(13, 92, 67, 0.60), 0 6px 14px -6px rgba(13, 92, 67, 0.40)",
+                }}
+              >
                 <p className="text-xs font-medium text-white/80">{app.totalBalance}</p>
                 <p className="mt-1 font-heading text-3xl font-bold tabular-nums text-white sm:text-4xl">
                   <AnimatedNumber value={4685} format={(v) => formatCurrency(v, currency)} duration={900} />
