@@ -5,7 +5,7 @@ import { BudgetCard } from "./BudgetCard";
 const LONG_PRESS_MS = 280;
 const MOVE_CANCEL_PX = 8;
 
-function BudgetReorderItem({ budget, isEditMode, onOpen, onDragActivate, onDragCommit }) {
+function BudgetReorderItem({ budget, isEditMode, onOpen, onRedistribute, onDragActivate, onDragCommit }) {
   const controls = useDragControls();
   const timerRef = useRef(null);
   const startRef = useRef({ x: 0, y: 0 });
@@ -90,12 +90,12 @@ function BudgetReorderItem({ budget, isEditMode, onOpen, onDragActivate, onDragC
       }}
       className="select-none"
     >
-      <BudgetCard budget={budget} onClick={handleOpen} isEditMode={isEditMode} />
+      <BudgetCard budget={budget} onClick={handleOpen} onRedistribute={onRedistribute} isEditMode={isEditMode} />
     </Reorder.Item>
   );
 }
 
-export function BudgetReorderList({ budgets, isEditMode, onOpen, onReorderCommit }) {
+export function BudgetReorderList({ budgets, isEditMode, onOpen, onRedistribute, onReorderCommit }) {
   const [items, setItems] = useState(budgets);
   const draggingRef = useRef(false);
   const itemsRef = useRef(items);
@@ -118,6 +118,7 @@ export function BudgetReorderList({ budgets, isEditMode, onOpen, onReorderCommit
           budget={budget}
           isEditMode={isEditMode}
           onOpen={onOpen}
+          onRedistribute={onRedistribute}
           onDragActivate={() => { draggingRef.current = true; }}
           onDragCommit={commit}
         />

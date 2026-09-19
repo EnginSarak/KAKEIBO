@@ -15,6 +15,7 @@ import { TransactionItem } from "../components/TransactionItem";
 import { TransactionModal } from "../components/modals/TransactionModal";
 import { AccountModal } from "../components/modals/AccountModal";
 import { BudgetModal } from "../components/modals/BudgetModal";
+import { RedistributionModal } from "../components/modals/RedistributionModal";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 
 let savedScrollTop = 0;
@@ -41,6 +42,7 @@ export function Dashboard({ onNavigateToSettings, onNavigateToTransactions, onNa
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [budgetModalType, setBudgetModalType] = useState("expense");
   const [isEditMode, setIsEditMode] = useState(false);
+  const [redistributingBudgetId, setRedistributingBudgetId] = useState(null);
   const DEMO_TRANSACTION_LIMIT = 10;
   const DASHBOARD_RECENT_LIMIT = 5;
   
@@ -78,6 +80,12 @@ export function Dashboard({ onNavigateToSettings, onNavigateToTransactions, onNa
     }
   };
   
+  const redistributingBudget = expenseBudgets.find((b) => b.id === redistributingBudgetId) || null;
+
+  const handleRedistribute = (budget) => {
+    setRedistributingBudgetId(budget.id);
+  };
+
   const handleTransactionClick = (tx) => {
     setEditingTransaction(tx);
     setShowTransactionModal(true);
@@ -213,6 +221,7 @@ export function Dashboard({ onNavigateToSettings, onNavigateToTransactions, onNa
                 budgets={expenseBudgets}
                 isEditMode={isEditMode}
                 onOpen={handleBudgetClick}
+                onRedistribute={handleRedistribute}
                 onReorderCommit={reorderBudgets}
               />
             )}
@@ -255,6 +264,7 @@ export function Dashboard({ onNavigateToSettings, onNavigateToTransactions, onNa
                 budgets={accumulatingBudgets}
                 isEditMode={isEditMode}
                 onOpen={handleBudgetClick}
+                onRedistribute={handleRedistribute}
                 onReorderCommit={reorderBudgets}
               />
             )}
@@ -335,6 +345,12 @@ export function Dashboard({ onNavigateToSettings, onNavigateToTransactions, onNa
         budget={editingBudget}
         defaultType={budgetModalType}
         defaultAccountId={accounts[0]?.id}
+      />
+
+      <RedistributionModal
+        open={Boolean(redistributingBudget)}
+        onOpenChange={(open) => { if (!open) setRedistributingBudgetId(null); }}
+        budget={redistributingBudget}
       />
     </div>
   );

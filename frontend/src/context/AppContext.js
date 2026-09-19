@@ -22,7 +22,6 @@ import {
   transactionDeleteDeltas,
   redistributeRemainder as dbRedistributeRemainder,
   persistBudgetReset as dbPersistBudgetReset,
-  updateBudgetPending as dbUpdateBudgetPending,
   updateBudgetCarryover as dbUpdateBudgetCarryover,
 } from '../lib/db';
 import { generateId } from '../lib/utils';
@@ -657,7 +656,7 @@ export function AppProvider({ children }) {
       resetMap[budget.id] = {
         spent: 0,
         carriedOver,
-        pending_remainder: 0,
+        pending_remainder: (budget.pending_remainder || 0) + calculatePendingRemainder(budget),
         lastReset: nowIso,
       };
     });
@@ -669,7 +668,7 @@ export function AppProvider({ children }) {
         ...budget,
         spent: 0,
         carried_over: r.carriedOver,
-        pending_remainder: 0,
+        pending_remainder: r.pending_remainder,
         last_reset: nowIso,
       };
     }));
@@ -683,20 +682,7 @@ export function AppProvider({ children }) {
         }
       });
     }
-  }, [loading, authLoading, budgets, isDemo, user]);
-
-  useEffect(() => {
-    if (loading || authLoading) return;
-    const stale = budgets.filter((b) => Number(b.pending_remainder) > 0);
-    if (stale.length === 0) return;
-    const staleIds = new Set(stale.map((b) => b.id));
-    setBudgets((prev) => prev.map((b) => staleIds.has(b.id) ? { ...b, pending_remainder: 0 } : b));
-    if (!isDemo && user) {
-      stale.forEach((b) => {
-        dbUpdateBudgetPending(user.uid, b.id, 0).catch((e) => console.error('Failed to clear pending_remainder:', b.id, e));
-      });
-    }
-  }, [loading, authLoading, budgets, isDemo, user]);
+  }, [loading, authLoading, budgets, isDemo, user, calculatePendingRemainder]);
 
   const getBudgetById = useCallback((id) => budgets.find((b) => b.id === id), [budgets]);
   const getAccountById = useCallback((id) => accounts.find((a) => a.id === id), [accounts]);
