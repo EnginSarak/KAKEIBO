@@ -134,11 +134,6 @@ export async function resetBudget(userId, budgetId, budget) {
   }
 }
 
-export async function updateBudgetPending(userId, budgetId, value) {
-  const budgetRef = doc(db, 'users', userId, 'budgets', budgetId);
-  await updateDoc(budgetRef, { pending_remainder: value, updatedAt: serverTimestamp() });
-}
-
 export async function updateBudgetCarryover(userId, budgetId, carriedOver) {
   const budgetRef = doc(db, 'users', userId, 'budgets', budgetId);
   await updateDoc(budgetRef, { carriedOver, updatedAt: serverTimestamp() });

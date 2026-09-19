@@ -6,7 +6,7 @@ import { formatCurrency } from "../lib/currency";
 import { useApp } from "../context/AppContext";
 import { AnimatedNumber } from "./AnimatedNumber";
 
-export function BudgetCard({ budget, onClick, isEditMode = false, className }) {
+export function BudgetCard({ budget, onClick, onRedistribute, isEditMode = false, className }) {
   const { settings } = useApp();
   const total = budget.amount + (budget.carried_over || 0);
   const remaining = total - (budget.spent || 0);
@@ -36,11 +36,19 @@ export function BudgetCard({ budget, onClick, isEditMode = false, className }) {
       data-testid={`budget-card-${budget.id}`}
     >
       {hasPendingRemainder && (
-        <div 
-          className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full animate-pulse"
-          title={`Restguthaben: ${formatCurrency(pendingRemainder, settings.currency)}`}
+        <button
+          type="button"
+          className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center"
+          title={`${formatCurrency(pendingRemainder, settings.currency)}`}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRedistribute?.(budget);
+          }}
           data-testid={`budget-pending-badge-${budget.id}`}
-        />
+        >
+          <span className="w-3 h-3 bg-destructive rounded-full animate-pulse" />
+        </button>
       )}
       
       <div className="flex items-center gap-3">
