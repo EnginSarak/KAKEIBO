@@ -31,17 +31,19 @@ export function ImprintPage({ onBack, language = "de" }) {
         <h3>Angaben gemäß § 5 DDG</h3>
         <p>
           Engin Sarak<br />
+          c/o Nadim Sarak<br />
           Schallmauer 16<br />
           50226 Frechen<br />
           Deutschland
         </p>
         <h3>Kontakt</h3>
         <p>
-          E-Mail: sarak.engin@gmail.com
+          E-Mail: mail@enginsarak.com
         </p>
         <h3>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h3>
         <p>
           Engin Sarak<br />
+          c/o Nadim Sarak<br />
           Schallmauer 16<br />
           50226 Frechen
         </p>
@@ -53,17 +55,19 @@ export function ImprintPage({ onBack, language = "de" }) {
         <h3>Information according to § 5 DDG</h3>
         <p>
           Engin Sarak<br />
+          c/o Nadim Sarak<br />
           Schallmauer 16<br />
           50226 Frechen<br />
           Germany
         </p>
         <h3>Contact</h3>
         <p>
-          Email: sarak.engin@gmail.com
+          Email: mail@enginsarak.com
         </p>
         <h3>Responsible for content according to § 18 (2) MStV</h3>
         <p>
           Engin Sarak<br />
+          c/o Nadim Sarak<br />
           Schallmauer 16<br />
           50226 Frechen
         </p>
@@ -88,8 +92,8 @@ export function PrivacyPage({ onBack, language = "de" }) {
         <h3>1. Verantwortlicher</h3>
         <p>
           Verantwortlich für die Datenverarbeitung auf dieser Website ist:<br />
-          Engin Sarak, Schallmauer 16, 50226 Frechen<br />
-          E-Mail: sarak.engin@gmail.com
+          Engin Sarak, c/o Nadim Sarak, Schallmauer 16, 50226 Frechen<br />
+          E-Mail: mail@enginsarak.com
         </p>
 
         <h3>2. Erhobene Daten</h3>
@@ -128,7 +132,7 @@ export function PrivacyPage({ onBack, language = "de" }) {
         <h3>6. Kontakt</h3>
         <p>
           Bei Fragen zum Datenschutz wenden Sie sich an:<br />
-          sarak.engin@gmail.com
+          mail@enginsarak.com
         </p>
       </>
     ),
@@ -140,8 +144,8 @@ export function PrivacyPage({ onBack, language = "de" }) {
         <h3>1. Data Controller</h3>
         <p>
           The data controller for this website is:<br />
-          Engin Sarak, Schallmauer 16, 50226 Frechen<br />
-          Email: sarak.engin@gmail.com
+          Engin Sarak, c/o Nadim Sarak, Schallmauer 16, 50226 Frechen<br />
+          Email: mail@enginsarak.com
         </p>
 
         <h3>2. Data Collected</h3>
