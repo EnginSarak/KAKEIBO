@@ -1,5 +1,6 @@
 import React from "react";
 import { ArrowLeft } from "lucide-react";
+import { legalLastUpdated } from "../lib/legal-updated";
 
 const LegalPageWrapper = ({ title, children, onBack }) => (
   <div className="min-h-screen bg-background">
@@ -87,7 +88,7 @@ export function PrivacyPage({ onBack, language = "de" }) {
     de: (
       <>
         <h2>Datenschutzerklärung</h2>
-        <p><strong>Stand: Februar 2026</strong></p>
+        <p><strong>Stand: {legalLastUpdated("de")}</strong></p>
         
         <h3>1. Verantwortlicher</h3>
         <p>
@@ -139,7 +140,7 @@ export function PrivacyPage({ onBack, language = "de" }) {
     en: (
       <>
         <h2>Privacy Policy</h2>
-        <p><strong>Last updated: February 2026</strong></p>
+        <p><strong>Last updated: {legalLastUpdated("en")}</strong></p>
         
         <h3>1. Data Controller</h3>
         <p>
@@ -190,7 +191,7 @@ export function TermsPage({ onBack, language = "de" }) {
     de: (
       <>
         <h2>Allgemeine Geschäftsbedingungen</h2>
-        <p><strong>Stand: Februar 2026</strong></p>
+        <p><strong>Stand: {legalLastUpdated("de")}</strong></p>
 
         <h3>1. Geltungsbereich</h3>
         <p>
@@ -238,7 +239,7 @@ export function TermsPage({ onBack, language = "de" }) {
     en: (
       <>
         <h2>Terms of Service</h2>
-        <p><strong>Last updated: February 2026</strong></p>
+        <p><strong>Last updated: {legalLastUpdated("en")}</strong></p>
 
         <h3>1. Scope</h3>
         <p>
@@ -291,7 +292,7 @@ export function CookieStatementPage({ onBack, language = "de" }) {
     de: (
       <>
         <h2>Cookie-Statement</h2>
-        <p><strong>Stand: Februar 2026</strong></p>
+        <p><strong>Stand: {legalLastUpdated("de")}</strong></p>
 
         <h3>Was sind Cookies?</h3>
         <p>
@@ -335,7 +336,7 @@ export function CookieStatementPage({ onBack, language = "de" }) {
     en: (
       <>
         <h2>Cookie Statement</h2>
-        <p><strong>Last updated: February 2026</strong></p>
+        <p><strong>Last updated: {legalLastUpdated("en")}</strong></p>
 
         <h3>What are Cookies?</h3>
         <p>
