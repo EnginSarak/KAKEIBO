@@ -15,6 +15,7 @@ import { ImprintPage, PrivacyPage, TermsPage, CookieStatementPage } from './page
 import DesktopNotice from './pages/DesktopNotice';
 
 const SETTINGS_KEY = 'kakeibo_settings';
+const NOINDEX_PATHS = ['/imprint', '/privacy'];
 
 function useIsDesktop() {
   const query = '(hover: hover) and (pointer: fine)';
@@ -129,6 +130,16 @@ function AppRouter() {
       }
     }
   }, [user, authLoading, isDemo, location.pathname, navigate]);
+
+  useEffect(() => {
+    const existing = document.querySelector('meta[name="robots"]');
+    if (existing) existing.remove();
+    if (!NOINDEX_PATHS.includes(location.pathname)) return;
+    const meta = document.createElement('meta');
+    meta.setAttribute('name', 'robots');
+    meta.setAttribute('content', 'noindex, nofollow, noarchive, nosnippet');
+    document.head.appendChild(meta);
+  }, [location.pathname]);
 
   if (location.pathname === '/auth/action') {
     return <AuthActionPage language={language} navigate={navigate} />;
