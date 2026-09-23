@@ -7,7 +7,7 @@
 
 # KAKEIBO
 
-**Version 1.0.0**
+**Version 1.0.1**
 
 *A personal budgeting app built on the Japanese kakeibo method,<br/>for dividing your money up before you spend it*
 
@@ -18,6 +18,8 @@
 ![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)
 ![Status](https://img.shields.io/badge/status-Active-brightgreen)
+
+**[kakeibo.enginsarak.com](https://kakeibo.enginsarak.com)**
 
 </div>
 
@@ -41,6 +43,7 @@
   - [Built for Phones](#built-for-phones)
 - [Account and Data](#account-and-data)
 - [Setup](#setup)
+- [Changelog](#changelog)
 
 ---
 
@@ -201,6 +204,17 @@ The settings let you change your display name, email address and password, with 
 
 Data belonging to an account is stored per user and is only readable by that user. Demo data never leaves the browser it was entered in.
 
+
+---
+
+## Changelog
+
+### 1.0.1 (2026-09-23)
+
+#### Changed
+- The app has its own address: `kakeibo.enginsarak.com`, and the README links to it. The
+  old `kakeibo-application.vercel.app` and `kakeibo-seven-mauve.vercel.app` redirect
+  there, so links that are already out keep working.
 
 ---
 
