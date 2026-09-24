@@ -345,8 +345,8 @@ export function LandingPage({ onStartDemo, onLogin, onSignup, language, onChange
       <header className="fixed inset-x-0 top-3 z-50 px-3 sm:top-4 sm:px-4">
         <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-1.5 rounded-full border border-kbo-line bg-kbo-panel/70 pl-3 pr-1.5 backdrop-blur-xl sm:gap-4 sm:px-6">
           <div className="flex-shrink-0">
-            <img src="/kakeibo-logo-light.svg" alt="Kakeibo" className="h-5 dark:hidden sm:h-7" />
-            <img src="/kakeibo-logo-dark.svg" alt="Kakeibo" className="hidden h-5 dark:block sm:h-7" />
+            <img src="/kakeibo-logo-light.svg" alt="Kakeibo" className="h-6 dark:hidden sm:h-7" />
+            <img src="/kakeibo-logo-dark.svg" alt="Kakeibo" className="hidden h-6 dark:block sm:h-7" />
           </div>
           <div className="flex min-w-0 flex-shrink items-center gap-0.5 sm:gap-2.5">
             <ThemeToggle className="flex-shrink-0" />
