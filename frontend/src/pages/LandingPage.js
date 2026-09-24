@@ -343,23 +343,23 @@ export function LandingPage({ onStartDemo, onLogin, onSignup, language, onChange
       data-testid="landing-page"
     >
       <header className="fixed inset-x-0 top-3 z-50 px-3 sm:top-4 sm:px-4">
-        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 rounded-full border border-kbo-line bg-kbo-panel/70 pl-4 pr-2 backdrop-blur-xl sm:gap-4 sm:px-6">
+        <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-1.5 rounded-full border border-kbo-line bg-kbo-panel/70 pl-3 pr-1.5 backdrop-blur-xl sm:gap-4 sm:px-6">
           <div className="flex-shrink-0">
-            <img src="/kakeibo-logo-light.svg" alt="Kakeibo" className="h-6 dark:hidden sm:h-7" />
-            <img src="/kakeibo-logo-dark.svg" alt="Kakeibo" className="hidden h-6 dark:block sm:h-7" />
+            <img src="/kakeibo-logo-light.svg" alt="Kakeibo" className="h-5 dark:hidden sm:h-7" />
+            <img src="/kakeibo-logo-dark.svg" alt="Kakeibo" className="hidden h-5 dark:block sm:h-7" />
           </div>
-          <div className="flex flex-shrink-0 items-center gap-1 sm:gap-2.5">
+          <div className="flex min-w-0 flex-shrink items-center gap-0.5 sm:gap-2.5">
             <ThemeToggle className="flex-shrink-0" />
             <button
               type="button"
               onClick={onLogin}
-              className="rounded-full px-1.5 py-2 text-[13px] font-medium text-kbo-muted transition-colors hover:text-kbo-text sm:px-3 sm:text-sm"
+              className="truncate rounded-full px-1 py-2 text-xs font-medium text-kbo-muted transition-colors hover:text-kbo-text sm:px-3 sm:text-sm"
               data-testid="login-btn-header"
             >
               {t.loginBtn}
             </button>
-            <PillButton onClick={onSignup} className="px-3 py-2 text-[13px] sm:px-4 sm:text-sm" testId="register-btn-header">
-              {t.ctaStart}
+            <PillButton onClick={onSignup} className="px-2.5 py-2 text-xs sm:px-4 sm:text-sm" testId="register-btn-header">
+              {t.registerBtn}
             </PillButton>
           </div>
         </nav>
