@@ -10,20 +10,20 @@ import { useApp } from "../context/AppContext";
 import { authTarget } from "../lib/firebase";
 import { toast } from "sonner";
 import { getTranslations } from "../lib/i18n";
-const getFirebaseErrorMessage = (error) => {
+const getFirebaseErrorMessage = (error, t) => {
   const code = error?.code || '';
   const messages = {
-    'auth/email-already-in-use': 'Diese E-Mail-Adresse wird bereits verwendet.',
-    'auth/invalid-email': 'Ungültige E-Mail-Adresse.',
-    'auth/wrong-password': 'Falsches Passwort.',
-    'auth/user-not-found': 'Kein Konto mit dieser E-Mail gefunden.',
-    'auth/weak-password': 'Passwort muss mindestens 6 Zeichen haben.',
-    'auth/too-many-requests': 'Zu viele Versuche. Bitte warte kurz.',
-    'auth/network-request-failed': `Netzwerkfehler: Server nicht erreichbar (${authTarget}).`,
-    'auth/invalid-credential': 'E-Mail oder Passwort ist falsch.',
-    'auth/email-not-verified': 'Bitte bestätige zuerst deine E-Mail-Adresse. Schau in deinen Posteingang.',
+    'auth/email-already-in-use': t.errEmailInUse,
+    'auth/invalid-email': t.errInvalidEmail,
+    'auth/wrong-password': t.errWrongPassword,
+    'auth/user-not-found': t.errUserNotFound,
+    'auth/weak-password': t.errWeakPassword,
+    'auth/too-many-requests': t.errTooManyRequests,
+    'auth/network-request-failed': t.errNetwork.replace('{target}', authTarget),
+    'auth/invalid-credential': t.errInvalidCredential,
+    'auth/email-not-verified': t.errEmailNotVerified,
   };
-  return messages[code] || error?.message || 'Ein Fehler ist aufgetreten.';
+  return messages[code] || error?.message || t.errorOccurred;
 };
 
 export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSuccess, language = "de" }) {
@@ -36,7 +36,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      toast.error("Bitte alle Felder ausfüllen.");
+      toast.error(t.fillAllFields);
       return;
     }
 
@@ -49,7 +49,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
         toast.error(t.verifyEmailFirst);
       }
     } catch (error) {
-      toast.error(getFirebaseErrorMessage(error));
+      toast.error(getFirebaseErrorMessage(error, t));
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
           data-testid="back-btn"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm">Zurück</span>
+          <span className="text-sm">{t.back}</span>
         </button>
       </header>
 
@@ -80,13 +80,13 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
           </div>
 
           <div className="text-center mb-8">
-            <h1 className="font-heading text-2xl font-bold text-foreground">Anmelden</h1>
-            <p className="text-muted-foreground mt-1">Willkommen zurück!</p>
+            <h1 className="font-heading text-2xl font-bold text-foreground">{t.login}</h1>
+            <p className="text-muted-foreground mt-1">{t.loginSubtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
+              <Label htmlFor="email">{t.email}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -94,7 +94,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="deine@email.de"
+                  placeholder={t.emailPlaceholder}
                   className="h-12 pl-10"
                   autoComplete="email"
                   data-testid="login-email-input"
@@ -103,7 +103,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
+              <Label htmlFor="password">{t.password}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -132,7 +132,7 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
               className="text-sm text-primary hover:underline"
               data-testid="forgot-password-link"
             >
-              Passwort vergessen?
+              {t.forgotPasswordQuestion}
             </button>
 
             <Button
@@ -142,18 +142,18 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
               data-testid="login-submit-btn"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Anmelden
+              {t.login}
             </Button>
           </form>
 
           <p className="text-center mt-6 text-sm text-muted-foreground">
-            Noch kein Konto?{" "}
+            {t.dontHaveAccount}{" "}
             <button
               onClick={onSwitchToSignup}
               className="text-primary hover:underline font-medium"
               data-testid="switch-to-signup"
             >
-              Jetzt registrieren
+              {t.signupNow}
             </button>
           </p>
         </motion.div>
@@ -176,15 +176,15 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      toast.error("Bitte alle Felder ausfüllen.");
+      toast.error(t.fillAllFields);
       return;
     }
     if (password !== confirmPassword) {
-      toast.error("Passwörter stimmen nicht überein.");
+      toast.error(t.passwordsDontMatch);
       return;
     }
     if (password.length < 6) {
-      toast.error("Passwort muss mindestens 6 Zeichen haben.");
+      toast.error(t.passwordTooShort);
       return;
     }
     if (!acceptedTerms) {
@@ -196,7 +196,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
     try {
       await signUp(email.trim(), password, displayName.trim() || email.trim().split("@")[0]);
     } catch (error) {
-      toast.error(getFirebaseErrorMessage(error));
+      toast.error(getFirebaseErrorMessage(error, t));
     } finally {
       setLoading(false);
     }
@@ -211,7 +211,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
           data-testid="back-btn"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm">Zurück</span>
+          <span className="text-sm">{t.back}</span>
         </button>
       </header>
 
@@ -227,20 +227,20 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
           </div>
 
           <div className="text-center mb-8">
-            <h1 className="font-heading text-2xl font-bold text-foreground">Konto erstellen</h1>
-            <p className="text-muted-foreground mt-1">Starte dein persönliches Budget-Tracking</p>
+            <h1 className="font-heading text-2xl font-bold text-foreground">{t.createAccount}</h1>
+            <p className="text-muted-foreground mt-1">{t.signupSubtitle}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="displayName">Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Label htmlFor="displayName">{t.nameLabel} <span className="text-muted-foreground font-normal">({t.optional})</span></Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="displayName"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="Wird aus deiner E-Mail übernommen"
+                  placeholder={t.namePlaceholder}
                   className="h-12 pl-10"
                   data-testid="signup-name-input"
                 />
@@ -248,7 +248,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
+              <Label htmlFor="email">{t.email}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -256,7 +256,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="deine@email.de"
+                  placeholder={t.emailPlaceholder}
                   className="h-12 pl-10"
                   autoComplete="email"
                   data-testid="signup-email-input"
@@ -265,7 +265,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Passwort</Label>
+              <Label htmlFor="password">{t.password}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -273,7 +273,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mindestens 6 Zeichen"
+                  placeholder={t.passwordMinPlaceholder}
                   className="h-12 pl-10 pr-10"
                   autoComplete="new-password"
                   data-testid="signup-password-input"
@@ -289,7 +289,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Passwort bestätigen</Label>
+              <Label htmlFor="confirmPassword">{t.confirmPassword}</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -297,7 +297,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
                   type={showPassword ? "text" : "password"}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Passwort wiederholen"
+                  placeholder={t.repeatPassword}
                   className="h-12 pl-10"
                   autoComplete="new-password"
                   data-testid="signup-confirm-password-input"
@@ -332,18 +332,18 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
               data-testid="signup-submit-btn"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Konto erstellen
+              {t.createAccount}
             </Button>
           </form>
 
           <p className="text-center mt-6 text-sm text-muted-foreground">
-            Bereits ein Konto?{" "}
+            {t.alreadyHaveAccount}{" "}
             <button
               onClick={onSwitchToLogin}
               className="text-primary hover:underline font-medium"
               data-testid="switch-to-login"
             >
-              Anmelden
+              {t.login}
             </button>
           </p>
         </motion.div>
@@ -356,11 +356,12 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const t = getTranslations(language);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim()) {
-      toast.error("Bitte E-Mail-Adresse eingeben.");
+      toast.error(t.enterEmail);
       return;
     }
 
@@ -368,9 +369,9 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
     try {
       await resetPassword(email.trim());
       setSent(true);
-      toast.success("Passwort-Reset-E-Mail gesendet!");
+      toast.success(t.resetEmailSent);
     } catch (error) {
-      toast.error(getFirebaseErrorMessage(error));
+      toast.error(getFirebaseErrorMessage(error, t));
     } finally {
       setLoading(false);
     }
@@ -385,7 +386,7 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
           data-testid="back-btn"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm">Zurück</span>
+          <span className="text-sm">{t.back}</span>
         </button>
       </header>
 
@@ -401,18 +402,18 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
           </div>
 
           <div className="text-center mb-8">
-            <h1 className="font-heading text-2xl font-bold text-foreground">Passwort zurücksetzen</h1>
+            <h1 className="font-heading text-2xl font-bold text-foreground">{t.resetPasswordTitle}</h1>
             <p className="text-muted-foreground mt-1">
               {sent
-                ? "Wir haben dir eine E-Mail mit einem Reset-Link gesendet."
-                : "Gib deine E-Mail-Adresse ein."}
+                ? t.resetPasswordSentText
+                : t.resetPasswordPrompt}
             </p>
           </div>
 
           {!sent ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">E-Mail</Label>
+                <Label htmlFor="email">{t.email}</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -420,7 +421,7 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="deine@email.de"
+                    placeholder={t.emailPlaceholder}
                     className="h-12 pl-10"
                     data-testid="forgot-email-input"
                   />
@@ -428,12 +429,12 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
               </div>
               <Button type="submit" className="w-full h-12" disabled={loading} data-testid="forgot-submit-btn">
                 {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Reset-Link senden
+                {t.sendResetLink}
               </Button>
             </form>
           ) : (
             <Button onClick={onBack} variant="outline" className="w-full h-12" data-testid="back-to-login-btn">
-              Zurück zur Anmeldung
+              {t.backToLogin}
             </Button>
           )}
         </motion.div>
@@ -461,7 +462,7 @@ export function VerifyEmailPage({ language = "de" }) {
       setCooldown(30);
       toast.success(t.resendEmailDone);
     } catch (error) {
-      toast.error(getFirebaseErrorMessage(error));
+      toast.error(getFirebaseErrorMessage(error, t));
     }
   };
 
@@ -472,7 +473,7 @@ export function VerifyEmailPage({ language = "de" }) {
       if (verified) toast.success(t.verifiedSuccess);
       else toast.error(t.stillNotVerified);
     } catch (error) {
-      toast.error(getFirebaseErrorMessage(error));
+      toast.error(getFirebaseErrorMessage(error, t));
     } finally {
       setChecking(false);
     }
@@ -547,7 +548,7 @@ export function FirebaseSetupNotice({ onBack, onTryDemo, language = "de" }) {
           data-testid="back-btn"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span className="text-sm">Zurück</span>
+          <span className="text-sm">{t.back}</span>
         </button>
       </header>
 
