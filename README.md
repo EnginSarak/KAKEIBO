@@ -7,7 +7,7 @@
 
 # KAKEIBO
 
-**Version 1.0.0**
+**Version 1.0.1**
 
 *A personal budgeting app built on the Japanese kakeibo method,<br/>for dividing your money up before you spend it*
 
@@ -43,6 +43,7 @@
   - [Built for Phones](#built-for-phones)
 - [Account and Data](#account-and-data)
 - [Setup](#setup)
+- [Changelog](#changelog)
 
 ---
 
@@ -205,6 +206,15 @@ Data belonging to an account is stored per user and is only readable by that use
 
 
 ---
+
+## Changelog
+
+### 1.0.1 (2026-09-23)
+
+#### Changed
+- The app has its own address: `kakeibo.enginsarak.com`, and the README links to it. The
+  old `kakeibo-application.vercel.app` and `kakeibo-seven-mauve.vercel.app` redirect
+  there, so links that are already out keep working.
 
 ---
 
