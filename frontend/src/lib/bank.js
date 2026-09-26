@@ -4,7 +4,7 @@ const clean = (value) => (value || '').replace(/^(['"])(.*)\1$/, '$2').trim();
 
 const BANK_SYNC_UID = clean(process.env.REACT_APP_BANK_SYNC_UID);
 
-export const AUTO_SYNC_INTERVAL_MS = 3 * 60 * 60 * 1000;
+export const AUTO_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 export const isBankSyncUser = (user) => Boolean(BANK_SYNC_UID && user && user.uid === BANK_SYNC_UID);
 
@@ -131,9 +131,11 @@ const fingerprint = (parts) => {
   return `fp_${hash.toString(36)}_${input.length.toString(36)}`;
 };
 
+const KEPT_STATUS = new Set(['BOOK', 'PDNG']);
+
 export const normaliseTransaction = (entry) => {
   const status = (entry?.status || 'BOOK').toUpperCase();
-  if (status !== 'BOOK') return null;
+  if (!KEPT_STATUS.has(status)) return null;
 
   const amount = Math.abs(Number(entry?.transaction_amount?.amount));
   if (!Number.isFinite(amount) || amount === 0) return null;
@@ -153,43 +155,81 @@ export const normaliseTransaction = (entry) => {
     name: name || '...',
     date,
     day,
-    bankRef: reference || fingerprint([day, amount.toFixed(2), isIncome ? 'CRDT' : 'DBIT', name]),
+    status,
+    bankRef: reference || fingerprint([status, day, amount.toFixed(2), isIncome ? 'CRDT' : 'DBIT', name]),
     hasReference: Boolean(reference),
   };
 };
 
-export const selectNewTransactions = (entries, existing, fromDay, dismissedRefs) => {
-  const known = new Set((existing || []).map((tx) => tx.bankRef).filter(Boolean));
-  for (const ref of dismissedRefs || []) known.add(ref);
+const sameAmount = (a, b) => Math.abs(a - b) < 0.005;
+
+const daysApart = (a, b) => {
+  const first = Date.parse(`${a}T12:00:00Z`);
+  const second = Date.parse(`${b}T12:00:00Z`);
+  if (Number.isNaN(first) || Number.isNaN(second)) return Number.POSITIVE_INFINITY;
+  return Math.abs(first - second) / 86400000;
+};
+
+const BOOKING_WINDOW_DAYS = 6;
+
+export const selectBankChanges = (entries, existing, fromDay, dismissedRefs) => {
+  const dismissed = new Set(dismissedRefs || []);
+  const fromBank = (existing || []).filter((tx) => tx.source === 'bank' && tx.bankRef);
+  const byRef = new Map(fromBank.map((tx) => [tx.bankRef, tx]));
 
   const seen = new Map();
-  const fresh = [];
-  let skipped = 0;
-
-  const normalised = (entries || [])
+  const incoming = (entries || [])
     .map(normaliseTransaction)
     .filter(Boolean)
     .filter((entry) => !fromDay || entry.day >= fromDay)
-    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .map((entry) => {
+      if (entry.hasReference) return entry;
+      const count = (seen.get(entry.bankRef) || 0) + 1;
+      seen.set(entry.bankRef, count);
+      return count > 1 ? { ...entry, bankRef: `${entry.bankRef}_${count}` } : entry;
+    });
 
-  for (const entry of normalised) {
-    let ref = entry.bankRef;
-    if (!entry.hasReference) {
-      const count = (seen.get(ref) || 0) + 1;
-      seen.set(ref, count);
-      if (count > 1) ref = `${ref}_${count}`;
-    }
+  const reported = new Set(incoming.map((entry) => entry.bankRef));
+  const stillPending = fromBank.filter(
+    (tx) => tx.bankStatus === 'PDNG' && !reported.has(tx.bankRef)
+  );
 
-    if (known.has(ref)) {
+  const create = [];
+  const update = [];
+  let skipped = 0;
+
+  for (const entry of incoming) {
+    if (dismissed.has(entry.bankRef)) {
       skipped += 1;
       continue;
     }
 
-    known.add(ref);
-    fresh.push({ ...entry, bankRef: ref });
+    const known = byRef.get(entry.bankRef);
+    if (known) {
+      if ((known.bankStatus || 'BOOK') !== entry.status) update.push({ existing: known, entry });
+      else skipped += 1;
+      continue;
+    }
+
+    if (entry.status === 'BOOK') {
+      const index = stillPending.findIndex(
+        (tx) =>
+          sameAmount(Number(tx.amount) || 0, entry.amount) &&
+          (tx.transactionType || tx.transaction_type) === entry.transaction_type &&
+          daysApart(dayOf(tx.date), entry.day) <= BOOKING_WINDOW_DAYS
+      );
+      if (index >= 0) {
+        const [matched] = stillPending.splice(index, 1);
+        update.push({ existing: matched, entry });
+        continue;
+      }
+    }
+
+    create.push(entry);
   }
 
-  return { entries: fresh, skipped };
+  return { create, update, remove: incoming.length ? stillPending : [], skipped };
 };
 
 export const transactionLabel = (transaction, t) => {

@@ -498,56 +498,82 @@ export async function getTransactionsSince(userId, accountId, isoDate) {
   }
 }
 
-const IMPORT_CHUNK = 400;
+const budgetEffectOf = (type, amount) => (type === 'expense' ? amount : -amount);
 
-export async function importBankTransactions(userId, { accountId, entries, balance }) {
+export async function applyBankChanges(userId, { accountId, create, update, remove, balance }) {
   const transactionsRef = collection(db, 'users', userId, 'transactions');
-  const created = [];
+  const budgetDeltas = new Map();
+  const addBudgetDelta = (budgetId, delta) => {
+    if (!budgetId || !delta) return;
+    const next = (budgetDeltas.get(budgetId) || 0) + delta;
+    if (next === 0) budgetDeltas.delete(budgetId);
+    else budgetDeltas.set(budgetId, next);
+  };
 
-  for (let start = 0; start < entries.length; start += IMPORT_CHUNK) {
-    const chunk = entries.slice(start, start + IMPORT_CHUNK);
-    const batch = writeBatch(db);
-    chunk.forEach((entry) => {
-      const ref = doc(transactionsRef);
-      const data = {
-        amount: entry.amount,
-        transactionType: entry.transaction_type,
-        name: '',
-        budgetId: null,
-        accountId,
-        date: entry.date,
-        source: 'bank',
-        bankRef: entry.bankRef,
-        needsReview: true,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      batch.set(ref, data);
-      created.push({ id: ref.id, ...data });
+  const batch = writeBatch(db);
+
+  for (const entry of create) {
+    batch.set(doc(transactionsRef), {
+      amount: entry.amount,
+      transactionType: entry.transaction_type,
+      name: '',
+      budgetId: null,
+      accountId,
+      date: entry.date,
+      source: 'bank',
+      bankRef: entry.bankRef,
+      bankStatus: entry.status,
+      needsReview: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
-    await batch.commit();
   }
 
-  const accountRef = doc(db, 'users', userId, 'accounts', accountId);
+  for (const { existing, entry } of update) {
+    const oldType = existing.transactionType || existing.transaction_type || 'expense';
+    const oldAmount = Number(existing.amount) || 0;
+    addBudgetDelta(
+      existing.budgetId !== undefined ? existing.budgetId : existing.budget_id,
+      budgetEffectOf(entry.transaction_type, entry.amount) - budgetEffectOf(oldType, oldAmount)
+    );
+    batch.update(doc(db, 'users', userId, 'transactions', existing.id), {
+      amount: entry.amount,
+      transactionType: entry.transaction_type,
+      date: entry.date,
+      bankRef: entry.bankRef,
+      bankStatus: entry.status,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  for (const existing of remove) {
+    addBudgetDelta(
+      existing.budgetId !== undefined ? existing.budgetId : existing.budget_id,
+      -budgetEffectOf(existing.transactionType || existing.transaction_type || 'expense', Number(existing.amount) || 0)
+    );
+    batch.delete(doc(db, 'users', userId, 'transactions', existing.id));
+  }
+
   if (typeof balance === 'number' && Number.isFinite(balance)) {
-    await updateDoc(accountRef, { balance, updatedAt: serverTimestamp() });
-    return { created, balance };
+    batch.update(doc(db, 'users', userId, 'accounts', accountId), {
+      balance,
+      updatedAt: serverTimestamp(),
+    });
   }
 
-  if (created.length) {
-    const snapshot = await getDoc(accountRef);
-    if (snapshot.exists()) {
-      const delta = created.reduce(
-        (sum, tx) => sum + (tx.transactionType === 'expense' ? -tx.amount : tx.amount),
-        0
-      );
-      const next = (snapshot.data().balance || 0) + delta;
-      await updateDoc(accountRef, { balance: next, updatedAt: serverTimestamp() });
-      return { created, balance: next };
-    }
+  await batch.commit();
+
+  for (const [budgetId, delta] of budgetDeltas) {
+    const budgetRef = doc(db, 'users', userId, 'budgets', budgetId);
+    const snapshot = await getDoc(budgetRef);
+    if (!snapshot.exists()) continue;
+    await updateDoc(budgetRef, {
+      spent: (snapshot.data().spent || 0) + delta,
+      updatedAt: serverTimestamp(),
+    });
   }
 
-  return { created, balance: null };
+  return { balance: typeof balance === 'number' && Number.isFinite(balance) ? balance : null };
 }
 
 export async function dismissBankRef(userId, bankRef) {

@@ -28,7 +28,7 @@ import {
   clearBankConnection as dbClearBankConnection,
   getTransactionsSince,
   dismissBankRef,
-  importBankTransactions,
+  applyBankChanges,
 } from '../lib/db';
 import {
   AUTO_SYNC_INTERVAL_MS,
@@ -37,7 +37,7 @@ import {
   isBankSyncUser,
   pickBalance,
   readBankSession,
-  selectNewTransactions,
+  selectBankChanges,
   shiftDay,
   startBankConnect,
 } from '../lib/bank';
@@ -46,7 +46,7 @@ import { isFirebaseConfigured } from '../lib/firebase';
 
 const DEMO_TRANSACTION_LIMIT = 10;
 const BANK_LOOKBACK_DAYS = 90;
-const BANK_STARTUP_FLOOR_MS = 60 * 60 * 1000;
+const BANK_STARTUP_FLOOR_MS = AUTO_SYNC_INTERVAL_MS;
 const BANK_RATE_LIMIT_PAUSE_MS = 6 * 60 * 60 * 1000;
 const BANK_AUTO_SYNC_CHECK_MS = 15 * 60 * 1000;
 
@@ -665,7 +665,7 @@ export function AppProvider({ children }) {
 
       const payload = await fetchBankTransactions(connection.bankAccountUid, fetchFrom);
 
-      const { entries, skipped } = selectNewTransactions(
+      const { create, update, remove, skipped } = selectBankChanges(
         payload.transactions,
         existing,
         fromDay,
@@ -674,24 +674,28 @@ export function AppProvider({ children }) {
       const balance = pickBalance(payload.balances);
 
       let applied = null;
-      if (entries.length || balance !== null) {
-        applied = await importBankTransactions(user.uid, {
+      if (create.length || update.length || remove.length || balance !== null) {
+        applied = await applyBankChanges(user.uid, {
           accountId: connection.accountId,
-          entries,
+          create,
+          update,
+          remove,
           balance,
         });
       }
 
       await dbSaveBankConnection(user.uid, {
         lastSyncAt: new Date().toISOString(),
-        lastSyncCount: entries.length,
+        lastSyncCount: create.length,
         lastSyncTruncated: Boolean(payload.truncated),
         lastSyncAccountId: connection.accountId,
         ...(connection.importFrom ? {} : { importFrom: fromDay }),
       });
 
       return {
-        imported: entries.length,
+        imported: create.length,
+        booked: update.length,
+        removed: remove.length,
         skipped,
         truncated: Boolean(payload.truncated),
         balance: applied ? applied.balance : null,

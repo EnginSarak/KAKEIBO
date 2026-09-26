@@ -12,6 +12,10 @@ export function TransactionItem({ transaction, onClick, showBudget = true }) {
   const budget = transaction.budget_id ? getBudgetById(transaction.budget_id) : null;
   const isExpense = transaction.transaction_type === "expense";
   const needsReview = transaction.needsReview === true;
+  const isPending = transaction.bankStatus === "PDNG";
+  const subline = [isPending ? t.bankSyncPending : null, showBudget && budget ? budget.name : null]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <motion.div
@@ -74,9 +78,9 @@ export function TransactionItem({ transaction, onClick, showBudget = true }) {
         <p className="font-medium text-foreground truncate" data-testid={`transaction-name-${transaction.id}`}>
           {transactionLabel(transaction, t)}
         </p>
-        {showBudget && budget && (
+        {subline && (
           <p className="text-xs text-muted-foreground truncate">
-            {budget.name}
+            {subline}
           </p>
         )}
       </div>
