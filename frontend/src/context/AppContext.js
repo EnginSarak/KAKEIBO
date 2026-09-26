@@ -23,9 +23,12 @@ import {
   redistributeRemainder as dbRedistributeRemainder,
   persistBudgetReset as dbPersistBudgetReset,
   updateBudgetCarryover as dbUpdateBudgetCarryover,
-  subscribeToBankConnection,
+  subscribeToBankConnections,
+  addBankConnection as dbAddBankConnection,
   saveBankConnection as dbSaveBankConnection,
-  clearBankConnection as dbClearBankConnection,
+  removeBankConnection as dbRemoveBankConnection,
+  readLegacyBankConnection,
+  dropLegacyBankConnection,
   getTransactionsSince,
   dismissBankRef,
   applyBankChanges,
@@ -168,11 +171,12 @@ export function AppProvider({ children }) {
   const [budgets, setBudgets] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [bankConnection, setBankConnection] = useState(null);
+  const [bankConnections, setBankConnections] = useState([]);
   const [bankSyncing, setBankSyncing] = useState(false);
   const [bankConnecting, setBankConnecting] = useState(false);
   const autoSyncRunning = useRef(false);
   const startupSyncDone = useRef(false);
+  const legacyMoveDone = useRef(false);
   const bankReturnHandled = useRef(false);
 
   const t = getTranslations(settings.language);
@@ -297,8 +301,19 @@ export function AppProvider({ children }) {
     return () => { unsubAccounts(); unsubBudgets(); unsubTransactions(); };
   }, [user, isDemo]);
   useEffect(() => {
-    if (!bankSyncAvailable) { setBankConnection(null); return; }
-    return subscribeToBankConnection(user.uid, (data) => setBankConnection(data));
+    if (!bankSyncAvailable) { setBankConnections([]); return; }
+    return subscribeToBankConnections(user.uid, (data) => setBankConnections(data));
+  }, [bankSyncAvailable, user]);
+
+  useEffect(() => {
+    if (!bankSyncAvailable || legacyMoveDone.current) return;
+    legacyMoveDone.current = true;
+    (async () => {
+      const legacy = await readLegacyBankConnection(user.uid);
+      if (!legacy?.bankAccountUid) return;
+      await dbAddBankConnection(user.uid, { ...legacy, bankName: legacy.bankName || null });
+      await dropLegacyBankConnection(user.uid);
+    })().catch((error) => { console.warn('Could not move the old connection:', error.message); });
   }, [bankSyncAvailable, user]);
   useEffect(() => {
     if (isDemo && !loading && !authLoading) {
@@ -594,15 +609,19 @@ export function AppProvider({ children }) {
       await dbDeleteTransaction(user.uid, id, payload);
       applyLedgerDeltas(transactionDeleteDeltas(payload));
       if (tx.source === 'bank' && tx.bankRef) {
-        dismissBankRef(user.uid, tx.bankRef).catch((error) => {
-          console.warn('Could not remember the deleted entry:', error.message);
-        });
+        const owner = bankConnections.find((connection) => connection.accountId === tx.account_id);
+        if (owner) {
+          dismissBankRef(user.uid, owner.id, tx.bankRef).catch((error) => {
+            console.warn('Could not remember the deleted entry:', error.message);
+          });
+        }
       }
     }
-  }, [isDemo, user, transactions, applyLedgerDeltas]);
-  const connectBank = useCallback(async () => {
-    const result = await startBankConnect();
+  }, [isDemo, user, transactions, applyLedgerDeltas, bankConnections]);
+  const connectBank = useCallback(async (bank) => {
+    const result = await startBankConnect(bank);
     if (!result?.url) throw new Error('No authorisation url');
+    window.sessionStorage.setItem('kakeibo_bank_pending', JSON.stringify(bank || {}));
     window.location.href = result.url;
   }, []);
 
@@ -612,10 +631,20 @@ export function AppProvider({ children }) {
     const bankAccount = (session.accounts || [])[0] || null;
     if (!bankAccount?.id) throw new Error('No bank account in session');
 
-    const connection = {
+    let asked = {};
+    try {
+      asked = JSON.parse(window.sessionStorage.getItem('kakeibo_bank_pending') || '{}');
+    } catch {
+      asked = {};
+    }
+    window.sessionStorage.removeItem('kakeibo_bank_pending');
+
+    return await dbAddBankConnection(user.uid, {
       provider: 'enablebanking',
+      bankName: session.bank || asked.name || null,
+      bankCountry: asked.country || null,
+      psuType: asked.psuType || 'personal',
       sessionId: session.sessionId,
-      bankName: session.bank || null,
       bankAccountUid: bankAccount.id,
       bankAccountIban: bankAccount.iban || null,
       bankAccountName: bankAccount.name || null,
@@ -623,27 +652,22 @@ export function AppProvider({ children }) {
       validUntil: session.validUntil || null,
       connectedAt: new Date().toISOString(),
       autoSync: true,
-    };
-    await dbSaveBankConnection(user.uid, connection);
-    return connection;
+    });
   }, [bankSyncAvailable, user]);
 
-  const updateBankConnection = useCallback(async (data) => {
+  const updateBankConnection = useCallback(async (connectionId, data) => {
     if (!bankSyncAvailable) return;
-    await dbSaveBankConnection(user.uid, data);
+    await dbSaveBankConnection(user.uid, connectionId, data);
   }, [bankSyncAvailable, user]);
 
-  const disconnectBank = useCallback(async () => {
+  const disconnectBank = useCallback(async (connectionId) => {
     if (!bankSyncAvailable) return;
-    await dbClearBankConnection(user.uid);
+    await dbRemoveBankConnection(user.uid, connectionId);
   }, [bankSyncAvailable, user]);
 
-  const syncBank = useCallback(async () => {
-    if (!bankSyncAvailable) return null;
-    const connection = bankConnection;
+  const syncConnection = useCallback(async (connection) => {
     if (!connection?.bankAccountUid || !connection?.accountId) return null;
 
-    setBankSyncing(true);
     try {
       const lookbackFrom = shiftDay(dayOf(new Date().toISOString()), -BANK_LOOKBACK_DAYS);
       const fetchFrom =
@@ -684,11 +708,12 @@ export function AppProvider({ children }) {
         });
       }
 
-      await dbSaveBankConnection(user.uid, {
+      await dbSaveBankConnection(user.uid, connection.id, {
         lastSyncAt: new Date().toISOString(),
         lastSyncCount: create.length,
         lastSyncTruncated: Boolean(payload.truncated),
         lastSyncAccountId: connection.accountId,
+        rateLimitedAt: null,
         ...(connection.importFrom ? {} : { importFrom: fromDay }),
       });
 
@@ -702,70 +727,86 @@ export function AppProvider({ children }) {
       };
     } catch (error) {
       if (error.status === 429) {
-        await dbSaveBankConnection(user.uid, { rateLimitedAt: new Date().toISOString() });
+        await dbSaveBankConnection(user.uid, connection.id, { rateLimitedAt: new Date().toISOString() });
       }
       throw error;
+    }
+  }, [user]);
+
+  const syncBank = useCallback(async (connectionId) => {
+    if (!bankSyncAvailable) return null;
+    const targets = connectionId
+      ? bankConnections.filter((connection) => connection.id === connectionId)
+      : bankConnections;
+    if (targets.length === 0) return null;
+
+    setBankSyncing(true);
+    try {
+      const totals = { imported: 0, booked: 0, removed: 0, skipped: 0, truncated: false, balance: null };
+      let failure = null;
+
+      for (const connection of targets) {
+        try {
+          const result = await syncConnection(connection);
+          if (!result) continue;
+          totals.imported += result.imported;
+          totals.booked += result.booked;
+          totals.removed += result.removed;
+          totals.skipped += result.skipped;
+          totals.truncated = totals.truncated || result.truncated;
+          if (result.balance !== null) totals.balance = result.balance;
+        } catch (error) {
+          failure = failure || error;
+        }
+      }
+
+      if (failure && totals.imported === 0 && totals.booked === 0) throw failure;
+      return totals;
     } finally {
       setBankSyncing(false);
     }
-  }, [bankSyncAvailable, bankConnection, user]);
-
-  useEffect(() => {
-    if (!bankSyncAvailable || bankReturnHandled.current) return;
-
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('bank');
-    if (!status) return;
-
-    bankReturnHandled.current = true;
-    window.history.replaceState({}, '', window.location.pathname);
-
-    const notify = async (kind, message) => {
-      const { toast } = await import('sonner');
-      toast[kind](message);
-    };
-
-    if (status !== 'connected') {
-      notify('error', status === 'denied' ? t.bankSyncErrorDenied : t.bankSyncErrorGeneric);
-      return;
-    }
-
-    setBankConnecting(true);
-    finishBankConnect()
-      .then(() => notify('success', t.bankSyncConnectedNow))
-      .catch(() => notify('error', t.bankSyncErrorSession))
-      .finally(() => setBankConnecting(false));
-  }, [bankSyncAvailable, finishBankConnect, t]);
+  }, [bankSyncAvailable, bankConnections, syncConnection]);
 
   useEffect(() => { startupSyncDone.current = false; }, [user]);
 
   useEffect(() => {
-    if (!bankSyncAvailable) return;
-    if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
+    if (!bankSyncAvailable || bankConnections.length === 0) return;
 
-    const freshlyLinked = bankConnection.accountId !== bankConnection.lastSyncAccountId;
-    const blockedUntil = (Date.parse(bankConnection.rateLimitedAt || '') || 0) + BANK_RATE_LIMIT_PAUSE_MS;
-    if (Date.now() < blockedUntil) return;
+    const isDue = (connection, floorMs) => {
+      if (connection.autoSync === false) return false;
+      if (!connection.accountId || !connection.bankAccountUid) return false;
+      const blockedUntil = (Date.parse(connection.rateLimitedAt || '') || 0) + BANK_RATE_LIMIT_PAUSE_MS;
+      if (Date.now() < blockedUntil) return false;
+      if (connection.accountId !== connection.lastSyncAccountId) return true;
+      const last = Date.parse(connection.lastSyncAt || '') || 0;
+      return Date.now() - last >= floorMs;
+    };
 
     const run = (floorMs) => {
       if (autoSyncRunning.current) return;
-      const last = Date.parse(bankConnection.lastSyncAt || '') || 0;
-      if (!freshlyLinked && Date.now() - last < floorMs) return;
+      const due = bankConnections.filter((connection) => isDue(connection, floorMs));
+      if (due.length === 0) return;
 
       autoSyncRunning.current = true;
-      syncBank()
-        .catch((error) => { console.warn('Bank sync failed:', error.message); })
-        .finally(() => { autoSyncRunning.current = false; });
+      (async () => {
+        for (const connection of due) {
+          try {
+            await syncConnection(connection);
+          } catch (error) {
+            console.warn('Bank sync failed:', error.message);
+          }
+        }
+      })().finally(() => { autoSyncRunning.current = false; });
     };
 
-    if (freshlyLinked || !startupSyncDone.current) {
+    if (!startupSyncDone.current) {
       startupSyncDone.current = true;
       run(BANK_STARTUP_FLOOR_MS);
     }
 
     const timer = setInterval(() => run(AUTO_SYNC_INTERVAL_MS), BANK_AUTO_SYNC_CHECK_MS);
     return () => clearInterval(timer);
-  }, [bankSyncAvailable, bankConnection, syncBank]);
+  }, [bankSyncAvailable, bankConnections, syncConnection]);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   const expenseBudgets = budgets.filter((b) => b.budget_type === 'expense').sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -901,7 +942,7 @@ export function AppProvider({ children }) {
     createBudget, updateBudget, deleteBudget, reorderBudgets, resetBudget, getBudgetById, setBudgetCarryover,
     createTransaction, updateTransaction, deleteTransaction, getTransactionsForAccount, getTransactionsForBudget,
     calculatePendingRemainder, getBudgetPendingRemainder, redistributeRemainder,
-    bankSyncAvailable, bankConnection, bankSyncing, bankConnecting,
+    bankSyncAvailable, bankConnections, bankSyncing, bankConnecting,
     connectBank, finishBankConnect, updateBankConnection, disconnectBank, syncBank,
   };
 

@@ -47,7 +47,7 @@ import { cn } from "../lib/utils";
 import { useApp } from "../context/AppContext";
 import { changePassword, changeEmail, deleteUserAccount } from "../lib/auth";
 import { languageNames } from "../lib/i18n";
-import { maskIban } from "../lib/bank";
+import { maskIban, searchBanks } from "../lib/bank";
 import { currencyNames } from "../lib/currency";
 import { toast } from "sonner";
 
@@ -61,7 +61,7 @@ export function SettingsPage({ onBack, onExitDemo }) {
     logout,
     accounts,
     bankSyncAvailable,
-    bankConnection,
+    bankConnections,
     bankSyncing,
     connectBank,
     bankConnecting,
@@ -81,8 +81,10 @@ export function SettingsPage({ onBack, onExitDemo }) {
   const [tempName, setTempName] = useState(settings.displayName);
   const [tempEmail, setTempEmail] = useState(settings.email);
   const [bankBusy, setBankBusy] = useState(false);
-
-  const bankConnected = Boolean(bankConnection?.bankAccountUid);
+  const [bankQuery, setBankQuery] = useState("");
+  const [bankResults, setBankResults] = useState([]);
+  const [bankSearching, setBankSearching] = useState(false);
+  const [bankSearched, setBankSearched] = useState(false);
 
   const formatDate = (value) => {
     if (!value) return t.bankSyncNever;
@@ -100,19 +102,36 @@ export function SettingsPage({ onBack, onExitDemo }) {
     return t.bankSyncErrorGeneric;
   };
 
-  const handleBankConnect = async () => {
+  const handleBankSearch = async () => {
+    setBankSearching(true);
+    try {
+      const result = await searchBanks(bankQuery.trim());
+      setBankResults(result.banks || []);
+      setBankSearched(true);
+    } catch (error) {
+      toast.error(bankErrorText(error));
+    } finally {
+      setBankSearching(false);
+    }
+  };
+
+  const handleBankConnect = async (bank) => {
     setBankBusy(true);
     try {
-      await connectBank();
+      await connectBank({
+        name: bank.name,
+        country: bank.country,
+        psuType: (bank.psuTypes || []).includes("personal") ? "personal" : "business",
+      });
     } catch (error) {
       toast.error(bankErrorText(error));
       setBankBusy(false);
     }
   };
 
-  const handleBankSync = async () => {
+  const handleBankSync = async (connectionId) => {
     try {
-      const result = await syncBank();
+      const result = await syncBank(connectionId);
       if (!result) return;
       if (result.truncated) toast.warning(t.bankSyncTruncated);
       if (result.imported > 0) {
@@ -129,9 +148,9 @@ export function SettingsPage({ onBack, onExitDemo }) {
     }
   };
 
-  const handleBankDisconnect = async () => {
+  const handleBankDisconnect = async (connectionId) => {
     try {
-      await disconnectBank();
+      await disconnectBank(connectionId);
       toast.success(t.bankSyncDisconnected);
     } catch (error) {
       toast.error(bankErrorText(error));
@@ -472,127 +491,168 @@ export function SettingsPage({ onBack, onExitDemo }) {
                 </span>
               </h2>
 
-              <div className="rounded-2xl bg-card border border-border overflow-hidden" data-testid="bank-sync-section">
-                <div className="p-4 flex items-start gap-3">
+              {bankConnections.length === 0 && (
+                <div className="rounded-2xl bg-card border border-border p-4 flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Landmark className="w-5 h-5 text-primary" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-foreground">
-                      {bankConnected ? t.bankSyncConnected : t.bankSyncNotConnected}
-                    </p>
-                    <p className="text-sm text-muted-foreground break-words">
-                      {bankConnected
-                        ? [
-                            bankConnection.bankAccountName || bankConnection.bankName,
-                            maskIban(bankConnection.bankAccountIban),
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")
-                        : t.bankSyncIntro}
-                    </p>
+                    <p className="font-medium text-foreground">{t.bankSyncNotConnected}</p>
+                    <p className="text-sm text-muted-foreground">{t.bankSyncIntro}</p>
                   </div>
                 </div>
+              )}
 
-                {!bankConnected && (
-                  <>
-                    <Separator />
-                    <div className="p-4">
+              {bankConnections.map((connection) => (
+                <div
+                  key={connection.id}
+                  className="rounded-2xl bg-card border border-border overflow-hidden"
+                  data-testid={`bank-connection-${connection.id}`}
+                >
+                  <div className="p-4 flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Landmark className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        {connection.bankName || t.bankSyncConnected}
+                      </p>
+                      <p className="text-sm text-muted-foreground break-words">
+                        {[connection.bankAccountName, maskIban(connection.bankAccountIban)]
+                          .filter(Boolean)
+                          .join(" · ") || t.bankSyncConnected}
+                      </p>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="p-4 space-y-2">
+                    <Label>{t.bankSyncAccount}</Label>
+                    <Select
+                      value={connection.accountId || ""}
+                      onValueChange={(value) => updateBankConnection(connection.id, { accountId: value })}
+                      disabled={accounts.length === 0}
+                    >
+                      <SelectTrigger className="h-12" data-testid={`bank-account-select-${connection.id}`}>
+                        <SelectValue placeholder={t.bankSyncSelectAccount} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accounts.map((account) => (
+                          <SelectItem key={account.id} value={account.id}>
+                            {account.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {accounts.length === 0 ? t.bankSyncNoAccounts : t.bankSyncAccountHint}
+                    </p>
+                  </div>
+
+                  <Separator />
+
+                  <div className="p-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">{t.bankSyncAuto}</p>
+                      <p className="text-sm text-muted-foreground">{t.bankSyncAutoHint}</p>
+                    </div>
+                    <Switch
+                      checked={connection.autoSync !== false}
+                      onCheckedChange={(checked) => updateBankConnection(connection.id, { autoSync: checked })}
+                      data-testid={`bank-autosync-switch-${connection.id}`}
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">{t.bankSyncLastSync}</span>
+                      <span className="text-foreground tabular-nums">{formatDate(connection.lastSyncAt)}</span>
+                    </div>
+                    {connection.validUntil && (
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{t.bankSyncValidUntil}</span>
+                        <span className="text-foreground tabular-nums">{formatDate(connection.validUntil)}</span>
+                      </div>
+                    )}
+                    {connection.lastSyncTruncated && (
+                      <p className="text-xs text-warning">{t.bankSyncTruncated}</p>
+                    )}
+                    <Button
+                      className="w-full h-12 bg-primary hover:bg-primary/90"
+                      onClick={() => handleBankSync(connection.id)}
+                      disabled={bankSyncing || !connection.accountId}
+                      data-testid={`bank-sync-btn-${connection.id}`}
+                    >
+                      {bankSyncing ? t.bankSyncFetching : t.bankSyncFetch}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">{t.bankSyncRenewHint}</p>
+                  </div>
+
+                  <Separator />
+
+                  <div
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleBankDisconnect(connection.id)}
+                    data-testid={`bank-disconnect-btn-${connection.id}`}
+                  >
+                    <p className="font-medium text-destructive">{t.bankSyncDisconnect}</p>
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-2xl bg-card border border-border overflow-hidden">
+                <div className="p-4 space-y-3">
+                  <Label htmlFor="bank-search">{t.bankSyncAddBank}</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="bank-search"
+                      value={bankQuery}
+                      onChange={(e) => setBankQuery(e.target.value)}
+                      placeholder={t.bankSyncSearchPlaceholder}
+                      className="h-12"
+                      data-testid="bank-search-input"
+                    />
+                    <Button
+                      variant="outline"
+                      className="h-12"
+                      onClick={handleBankSearch}
+                      disabled={bankSearching || bankQuery.trim().length < 2}
+                      data-testid="bank-search-btn"
+                    >
+                      {bankSearching ? "…" : t.bankSyncSearch}
+                    </Button>
+                  </div>
+
+                  {bankResults.map((bank) => (
+                    <div
+                      key={`${bank.name}-${bank.bic || ""}`}
+                      className="flex items-center justify-between gap-3 py-2 border-t border-border"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{bank.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {[bank.bic, bank.beta ? t.bankSyncBeta : null].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
                       <Button
-                        className="w-full h-12 bg-primary hover:bg-primary/90"
-                        onClick={handleBankConnect}
+                        size="sm"
+                        onClick={() => handleBankConnect(bank)}
                         disabled={bankBusy || bankConnecting}
-                        data-testid="bank-connect-btn"
+                        data-testid={`bank-connect-${bank.name}`}
                       >
                         {bankBusy || bankConnecting ? t.bankSyncConnecting : t.bankSyncConnect}
                       </Button>
                     </div>
-                  </>
-                )}
+                  ))}
 
-                {bankConnected && (
-                  <>
-                    <Separator />
-                    <div className="p-4 space-y-2">
-                      <Label>{t.bankSyncAccount}</Label>
-                      <Select
-                        value={bankConnection.accountId || ""}
-                        onValueChange={(value) => updateBankConnection({ accountId: value })}
-                        disabled={accounts.length === 0}
-                      >
-                        <SelectTrigger className="h-12" data-testid="bank-account-select">
-                          <SelectValue placeholder={t.bankSyncSelectAccount} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {accounts.map((account) => (
-                            <SelectItem key={account.id} value={account.id}>
-                              {account.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {accounts.length === 0 ? t.bankSyncNoAccounts : t.bankSyncAccountHint}
-                      </p>
-                    </div>
-
-                    <Separator />
-
-                    <div className="p-4 flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{t.bankSyncAuto}</p>
-                        <p className="text-sm text-muted-foreground">{t.bankSyncAutoHint}</p>
-                      </div>
-                      <Switch
-                        checked={bankConnection.autoSync !== false}
-                        onCheckedChange={(checked) => updateBankConnection({ autoSync: checked })}
-                        data-testid="bank-autosync-switch"
-                      />
-                    </div>
-
-                    <Separator />
-
-                    <div className="p-4 space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{t.bankSyncLastSync}</span>
-                        <span className="text-foreground tabular-nums">
-                          {formatDate(bankConnection.lastSyncAt)}
-                        </span>
-                      </div>
-                      {bankConnection.validUntil && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">{t.bankSyncValidUntil}</span>
-                          <span className="text-foreground tabular-nums">
-                            {formatDate(bankConnection.validUntil)}
-                          </span>
-                        </div>
-                      )}
-                      {bankConnection.lastSyncTruncated && (
-                        <p className="text-xs text-warning">{t.bankSyncTruncated}</p>
-                      )}
-                      <Button
-                        className="w-full h-12 bg-primary hover:bg-primary/90"
-                        onClick={handleBankSync}
-                        disabled={bankSyncing || !bankConnection.accountId}
-                        data-testid="bank-sync-btn"
-                      >
-                        {bankSyncing ? t.bankSyncFetching : t.bankSyncFetch}
-                      </Button>
-                      <p className="text-xs text-muted-foreground">{t.bankSyncRenewHint}</p>
-                    </div>
-
-                    <Separator />
-
-                    <div
-                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={handleBankDisconnect}
-                      data-testid="bank-disconnect-btn"
-                    >
-                      <p className="font-medium text-destructive">{t.bankSyncDisconnect}</p>
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  </>
-                )}
+                  {bankSearched && bankResults.length === 0 && (
+                    <p className="text-sm text-muted-foreground">{t.bankSyncNoBanks}</p>
+                  )}
+                </div>
               </div>
             </section>
           )}

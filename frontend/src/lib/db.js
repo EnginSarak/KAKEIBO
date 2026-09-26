@@ -466,20 +466,48 @@ export async function getTransactionsCount(userId, options = {}) {
   }
 }
 
-const bankConnectionRef = (userId) => doc(db, 'users', userId, 'settings', 'bankSync');
+const connectionsRef = (userId) => collection(db, 'users', userId, 'bankConnections');
+const connectionRef = (userId, connectionId) => doc(db, 'users', userId, 'bankConnections', connectionId);
+const legacyConnectionRef = (userId) => doc(db, 'users', userId, 'settings', 'bankSync');
 
-export function subscribeToBankConnection(userId, callback) {
-  return onSnapshot(bankConnectionRef(userId), (snapshot) => {
-    callback(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+export function subscribeToBankConnections(userId, callback) {
+  return onSnapshot(connectionsRef(userId), (snapshot) => {
+    callback(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
   });
 }
 
-export async function saveBankConnection(userId, data) {
-  await setDoc(bankConnectionRef(userId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+export async function addBankConnection(userId, data) {
+  const created = await addDoc(connectionsRef(userId), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return created.id;
 }
 
-export async function clearBankConnection(userId) {
-  await deleteDoc(bankConnectionRef(userId));
+export async function saveBankConnection(userId, connectionId, data) {
+  await setDoc(connectionRef(userId, connectionId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function removeBankConnection(userId, connectionId) {
+  await deleteDoc(connectionRef(userId, connectionId));
+}
+
+export async function dismissBankRef(userId, connectionId, bankRef) {
+  await setDoc(
+    connectionRef(userId, connectionId),
+    { dismissedRefs: arrayUnion(bankRef), updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+}
+
+export async function readLegacyBankConnection(userId) {
+  const snapshot = await getDoc(legacyConnectionRef(userId));
+  return snapshot.exists() ? snapshot.data() : null;
+}
+
+export async function dropLegacyBankConnection(userId) {
+  await deleteDoc(legacyConnectionRef(userId));
 }
 
 export async function getTransactionsSince(userId, accountId, isoDate) {
@@ -576,10 +604,3 @@ export async function applyBankChanges(userId, { accountId, create, update, remo
   return { balance: typeof balance === 'number' && Number.isFinite(balance) ? balance : null };
 }
 
-export async function dismissBankRef(userId, bankRef) {
-  await setDoc(
-    bankConnectionRef(userId),
-    { dismissedRefs: arrayUnion(bankRef), updatedAt: serverTimestamp() },
-    { merge: true }
-  );
-}

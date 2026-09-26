@@ -44,7 +44,18 @@ const request = async (path, options = {}) => {
   return payload;
 };
 
-export const startBankConnect = () => request('/api/bank/connect', { method: 'POST' });
+export const startBankConnect = (bank) =>
+  request('/api/bank/connect', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(bank || {}),
+  });
+
+export const searchBanks = (query, country = 'DE') => {
+  const params = new URLSearchParams({ country });
+  if (query) params.set('query', query);
+  return request(`/api/bank/banks?${params.toString()}`);
+};
 
 export const readBankSession = () => request('/api/bank/session');
 
