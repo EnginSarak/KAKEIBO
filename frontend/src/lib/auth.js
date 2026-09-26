@@ -28,13 +28,28 @@ function getVerificationSettings() {
   return { url: `${window.location.origin}/app`, handleCodeInApp: false };
 }
 
+async function sendVerification(user, lang) {
+  try {
+    const token = await user.getIdToken();
+    const response = await fetch('/api/auth/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lang }),
+    });
+    if (response.ok) return;
+  } catch (error) {
+    void error;
+  }
+  await sendEmailVerification(user, getVerificationSettings());
+}
+
 export function defaultDisplayName(email, provided) {
   const trimmed = (provided || '').trim();
   if (trimmed) return trimmed;
   return (email || '').split('@')[0] || '';
 }
 
-export async function signUp(email, password, displayName) {
+export async function signUp(email, password, displayName, lang = 'de') {
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
   const user = userCredential.user;
 
@@ -45,14 +60,14 @@ export async function signUp(email, password, displayName) {
   await setDoc(doc(db, 'users', user.uid), {
     displayName: name,
     email,
-    language: 'de',
+    language: lang,
     currency: 'EUR',
     theme: 'system',
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 
-  await sendEmailVerification(user, getVerificationSettings());
+  await sendVerification(user, lang);
 
   return user;
 }
@@ -129,9 +144,9 @@ export async function signIn(email, password) {
   return userCredential.user;
 }
 
-export async function resendVerificationEmail() {
+export async function resendVerificationEmail(lang = 'de') {
   if (!auth.currentUser) throw new Error('No user logged in');
-  await sendEmailVerification(auth.currentUser, getVerificationSettings());
+  await sendVerification(auth.currentUser, lang);
 }
 
 export async function reloadUser() {

@@ -257,7 +257,7 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
 
     setLoading(true);
     try {
-      await signUp(email.trim(), password, displayName.trim() || email.trim().split("@")[0]);
+      await signUp(email.trim(), password, displayName.trim() || email.trim().split("@")[0], language);
     } catch (error) {
       toast.error(getFirebaseErrorMessage(error, t));
     } finally {

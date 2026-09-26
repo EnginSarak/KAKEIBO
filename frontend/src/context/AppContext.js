@@ -305,7 +305,7 @@ export function AppProvider({ children }) {
   }, [applyFirebaseUser]);
 
   const resendVerification = useCallback(async () => {
-    await resendVerificationEmail();
+    await resendVerificationEmail(settings.language);
   }, []);
 
   const createAccount = useCallback(async (data) => {

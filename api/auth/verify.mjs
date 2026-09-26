@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { templates } from '../_lib/mail-templates.mjs';
+import { verifyIdToken } from '../_lib/auth.mjs';
 
 const PROJECT = 'kakeibo-application1';
 const APP_URL = process.env.BANK_APP_URL || 'https://kakeibo.enginsarak.com';
@@ -8,11 +9,11 @@ const FROM_NAME = 'Kakeibo';
 const LANGS = ['de', 'en', 'es', 'fr', 'it'];
 
 const BETREFF = {
-  de: 'Passwort zurücksetzen',
-  en: 'Reset your password',
-  es: 'Restablecer la contraseña',
-  fr: 'Réinitialiser le mot de passe',
-  it: 'Reimposta la password',
+  de: 'Bestätige deine E-Mail-Adresse',
+  en: 'Confirm your email address',
+  es: 'Confirma tu dirección de correo',
+  fr: 'Confirme ton adresse e-mail',
+  it: 'Conferma il tuo indirizzo e-mail',
 };
 
 const serviceAccount = () => {
@@ -52,17 +53,26 @@ const accessToken = async () => {
   return data.access_token;
 };
 
-const debugAllowed = (req) => {
-  const secret = process.env.DEBUG_TOKEN;
-  const given = req.headers?.['x-debug-token'];
-  return Boolean(secret && given && given === secret);
-};
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  const header = req.headers?.authorization || '';
+  const match = /^Bearer\s+(.+)$/i.exec(Array.isArray(header) ? header[0] : header);
+  if (!match) return res.status(401).json({ error: 'Missing bearer token' });
+
+  let claims;
+  try {
+    claims = await verifyIdToken(match[1].trim());
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const email = String(claims.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ error: 'Token carries no email' });
+  if (claims.email_verified) return res.status(200).json({ ok: true, alreadyVerified: true });
 
   let payload = req.body;
   if (typeof payload === 'string') {
@@ -72,66 +82,28 @@ export default async function handler(req, res) {
       payload = {};
     }
   }
-
-  const email = String(payload?.email || '').trim().toLowerCase();
   const lang = LANGS.includes(payload?.lang) ? payload.lang : 'de';
-
-  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return res.status(400).json({ error: 'Invalid email' });
-  }
-
-  const done = () => res.status(200).json({ ok: true });
-  const schritte = [];
 
   try {
     const token = await accessToken();
-    schritte.push('token');
 
     const oob = await fetch(
       `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:sendOobCode`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestType: 'PASSWORD_RESET', email, returnOobLink: true }),
+        body: JSON.stringify({ requestType: 'VERIFY_EMAIL', email, returnOobLink: true }),
       },
     );
-
-    schritte.push(`oob:${oob.status}`);
-    if (!oob.ok) {
-      if (debugAllowed(req)) return res.status(200).json({ schritte, fehler: await oob.text() });
-      return done();
-    }
+    if (!oob.ok) return res.status(502).json({ error: 'Link could not be created' });
 
     const { oobLink, oobCode } = await oob.json();
     const code = oobCode || (oobLink ? new URL(oobLink).searchParams.get('oobCode') : null);
-    if (!code) return done();
+    if (!code) return res.status(502).json({ error: 'Link could not be created' });
 
-    const link = `${APP_URL}/auth/action?mode=resetPassword&oobCode=${encodeURIComponent(code)}&lang=${lang}`;
-
-    let name = email.split('@')[0];
-    try {
-      const lookup = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:lookup`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: [email] }),
-        },
-      );
-      if (lookup.ok) {
-        const found = (await lookup.json()).users?.[0]?.displayName;
-        if (found) name = found;
-      }
-    } catch (error) {
-      void error;
-    }
-    const vorlage = templates.reset[lang];
-    if (!vorlage) {
-      if (debugAllowed(req)) return res.status(200).json({ schritte, fehler: 'Vorlage fehlt' });
-      return done();
-    }
-    schritte.push('vorlage');
-    const html = vorlage.replaceAll('%LINK%', link).replaceAll('%DISPLAY_NAME%', name);
+    const link = `${APP_URL}/auth/action?mode=verifyEmail&oobCode=${encodeURIComponent(code)}&lang=${lang}`;
+    const name = claims.name || email.split('@')[0];
+    const html = templates.verify[lang].replaceAll('%LINK%', link).replaceAll('%DISPLAY_NAME%', name);
 
     const versand = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -148,11 +120,9 @@ export default async function handler(req, res) {
       }),
     });
 
-    schritte.push(`brevo:${versand.status}`);
-    if (debugAllowed(req)) return res.status(200).json({ schritte, brevo: await versand.text() });
-    return done();
-  } catch (error) {
-    if (debugAllowed(req)) return res.status(200).json({ schritte, fehler: String(error?.message || error) });
-    return done();
+    if (!versand.ok) return res.status(502).json({ error: 'Mail could not be sent' });
+    return res.status(200).json({ ok: true });
+  } catch {
+    return res.status(500).json({ error: 'Unexpected error' });
   }
 }
