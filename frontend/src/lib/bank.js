@@ -163,7 +163,7 @@ export const normaliseTransaction = (entry) => {
   return {
     amount,
     transaction_type: isIncome ? 'income' : 'expense',
-    name: name || '...',
+    name,
     date,
     day,
     status,
@@ -183,24 +183,7 @@ const daysApart = (a, b) => {
 
 const BOOKING_WINDOW_DAYS = 6;
 
-const plainName = (value) =>
-  (value || '')
-    .toUpperCase()
-    .replace(/[^0-9A-ZÄÖÜß]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-export const isOwnName = (name, ownerNames) => {
-  const candidate = plainName(name);
-  if (!candidate) return false;
-  return (ownerNames || []).some((owner) => {
-    const tokens = plainName(owner).split(' ').filter((token) => token.length >= 3);
-    if (tokens.length === 0) return false;
-    return tokens.every((token) => candidate.split(' ').includes(token));
-  });
-};
-
-export const selectBankChanges = (entries, existing, fromDay, dismissedRefs, ownerNames) => {
+export const selectBankChanges = (entries, existing, fromDay, dismissedRefs) => {
   const dismissed = new Set(dismissedRefs || []);
   const fromBank = (existing || []).filter((tx) => tx.source === 'bank' && tx.bankRef);
   const byRef = new Map(fromBank.map((tx) => [tx.bankRef, tx]));
@@ -254,9 +237,7 @@ export const selectBankChanges = (entries, existing, fromDay, dismissedRefs, own
       }
     }
 
-    create.push(
-      isOwnName(entry.name, ownerNames) ? { ...entry, name: '' } : entry
-    );
+    create.push(entry);
   }
 
   return { create, update, remove: incoming.length ? stillPending : [], skipped };
