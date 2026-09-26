@@ -213,10 +213,7 @@ Data belonging to an account is stored per user and is only readable by that use
 ### 1.1.0 (2026-09-26)
 
 #### Added
-- Bank Sync, in beta and switched on for a small number of accounts. Transactions come
-  from the bank instead of being typed in, including the ones the bank has only set aside
-  so far. New entries arrive without a budget and carry a mark until you have given them
-  one, and the account balance is taken from the bank on every sync.
+- Bank Sync, in beta and switched on for a small number of accounts. Transactions and account balance is taken from the bank on every sync.
 
 ---
 
