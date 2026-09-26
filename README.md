@@ -2,7 +2,8 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="frontend/public/kakeibo-logo-dark.svg"/>
-  <img src="frontend/public/kakeibo-logo-readme.svg" alt="KAKEIBO" height="48"/>
+  <source media="(prefers-color-scheme: light)" srcset="frontend/public/kakeibo-logo-light.svg"/>
+  <img src="frontend/public/kakeibo-logo-light.svg" alt="KAKEIBO" height="48"/>
 </picture>
 
 # KAKEIBO
