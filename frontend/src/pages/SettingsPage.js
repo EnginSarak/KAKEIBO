@@ -113,6 +113,7 @@ export function SettingsPage({ onBack, onExitDemo }) {
     try {
       const result = await syncBank();
       if (!result) return;
+      if (result.truncated) toast.warning(t.bankSyncTruncated);
       if (result.imported > 0) {
         toast.success(`${t.bankSyncImported} ${result.imported}`, {
           description: result.skipped > 0 ? `${t.bankSyncSkipped} ${result.skipped}` : t.bankSyncUncategorised,
@@ -564,6 +565,9 @@ export function SettingsPage({ onBack, onExitDemo }) {
                             {formatDate(bankConnection.validUntil)}
                           </span>
                         </div>
+                      )}
+                      {bankConnection.lastSyncTruncated && (
+                        <p className="text-xs text-warning">{t.bankSyncTruncated}</p>
                       )}
                       <Button
                         className="w-full h-12 bg-primary hover:bg-primary/90"

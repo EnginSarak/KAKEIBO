@@ -644,7 +644,11 @@ export function AppProvider({ children }) {
 
     setBankSyncing(true);
     try {
-      const fetchFrom = shiftDay(dayOf(new Date().toISOString()), -BANK_LOOKBACK_DAYS);
+      const lookbackFrom = shiftDay(dayOf(new Date().toISOString()), -BANK_LOOKBACK_DAYS);
+      const fetchFrom =
+        connection.importFrom && connection.importFrom < lookbackFrom
+          ? connection.importFrom
+          : lookbackFrom;
       const existing = await getTransactionsSince(
         user.uid,
         connection.accountId,
@@ -680,6 +684,7 @@ export function AppProvider({ children }) {
       await dbSaveBankConnection(user.uid, {
         lastSyncAt: new Date().toISOString(),
         lastSyncCount: entries.length,
+        lastSyncTruncated: Boolean(payload.truncated),
         ...(connection.importFrom ? {} : { importFrom: fromDay }),
       });
 

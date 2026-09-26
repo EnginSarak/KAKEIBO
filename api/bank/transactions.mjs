@@ -1,7 +1,7 @@
 import { requireOwner } from '../_lib/auth.mjs';
 import { getBalances, getTransactions } from '../_lib/enablebanking.mjs';
 
-const MAX_PAGES = 10;
+const MAX_PAGES = 25;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, max-age=0');
