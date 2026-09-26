@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { templates } from '../_lib/mail-templates.mjs';
 import { verifyIdToken } from '../_lib/auth.mjs';
+import { profileLanguage } from '../_lib/profile.mjs';
 
 const PROJECT = 'kakeibo-application1';
 const APP_URL = process.env.BANK_APP_URL || 'https://kakeibo.enginsarak.com';
@@ -30,7 +31,7 @@ const accessToken = async () => {
   const now = Math.floor(Date.now() / 1000);
   const input = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/identitytoolkit',
+    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/datastore',
     aud: sa.token_uri,
     exp: now + 3600,
     iat: now,
@@ -101,9 +102,10 @@ export default async function handler(req, res) {
     const code = oobCode || (oobLink ? new URL(oobLink).searchParams.get('oobCode') : null);
     if (!code) return res.status(502).json({ error: 'Link could not be created' });
 
-    const link = `${APP_URL}/auth/action?mode=verifyEmail&oobCode=${encodeURIComponent(code)}&lang=${lang}`;
+    const sprache = await profileLanguage(token, claims.sub, lang);
+    const link = `${APP_URL}/auth/action?mode=verifyEmail&oobCode=${encodeURIComponent(code)}&lang=${sprache}`;
     const name = claims.name || email.split('@')[0];
-    const html = templates.verify[lang].replaceAll('%LINK%', link).replaceAll('%DISPLAY_NAME%', name);
+    const html = templates.verify[sprache].replaceAll('%LINK%', link).replaceAll('%DISPLAY_NAME%', name);
 
     const versand = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
@@ -115,7 +117,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         sender: { name: FROM_NAME, email: FROM },
         to: [{ email }],
-        subject: BETREFF[lang],
+        subject: BETREFF[sprache],
         htmlContent: html,
       }),
     });

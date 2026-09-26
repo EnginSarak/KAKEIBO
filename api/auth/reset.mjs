@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { templates } from '../_lib/mail-templates.mjs';
+import { profileLanguage } from '../_lib/profile.mjs';
 
 const PROJECT = 'kakeibo-application1';
 const APP_URL = process.env.BANK_APP_URL || 'https://kakeibo.enginsarak.com';
@@ -29,7 +30,7 @@ const accessToken = async () => {
   const now = Math.floor(Date.now() / 1000);
   const input = `${b64({ alg: 'RS256', typ: 'JWT' })}.${b64({
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/identitytoolkit',
+    scope: 'https://www.googleapis.com/auth/identitytoolkit https://www.googleapis.com/auth/datastore',
     aud: sa.token_uri,
     exp: now + 3600,
     iat: now,
@@ -106,9 +107,8 @@ export default async function handler(req, res) {
     const code = oobCode || (oobLink ? new URL(oobLink).searchParams.get('oobCode') : null);
     if (!code) return done();
 
-    const link = `${APP_URL}/auth/action?mode=resetPassword&oobCode=${encodeURIComponent(code)}&lang=${lang}`;
-
     let name = email.split('@')[0];
+    let sprache = lang;
     try {
       const lookup = await fetch(
         `https://identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:lookup`,
@@ -119,13 +119,16 @@ export default async function handler(req, res) {
         },
       );
       if (lookup.ok) {
-        const found = (await lookup.json()).users?.[0]?.displayName;
-        if (found) name = found;
+        const treffer = (await lookup.json()).users?.[0];
+        if (treffer?.displayName) name = treffer.displayName;
+        sprache = await profileLanguage(token, treffer?.localId, lang);
       }
     } catch (error) {
       void error;
     }
-    const vorlage = templates.reset[lang];
+    const link = `${APP_URL}/auth/action?mode=resetPassword&oobCode=${encodeURIComponent(code)}&lang=${sprache}`;
+
+    const vorlage = templates.reset[sprache];
     if (!vorlage) {
       if (debugAllowed(req)) return res.status(200).json({ schritte, fehler: 'Vorlage fehlt' });
       return done();
@@ -143,7 +146,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         sender: { name: FROM_NAME, email: FROM },
         to: [{ email }],
-        subject: BETREFF[lang],
+        subject: BETREFF[sprache],
         htmlContent: html,
       }),
     });
