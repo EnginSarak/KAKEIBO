@@ -222,10 +222,8 @@ Data belonging to an account is stored per user and is only readable by that use
 
 ### 1.0.1 (2026-09-23)
 
-#### Changed
-- The app has its own address: `kakeibo.enginsarak.com`, and the README links to it. The
-  old `kakeibo-application.vercel.app` and `kakeibo-seven-mauve.vercel.app` redirect
-  there, so links that are already out keep working.
+#### Fixed
+- Minor bug fixes.
 
 ---
 
