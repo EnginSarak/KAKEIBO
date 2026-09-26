@@ -693,7 +693,8 @@ export function AppProvider({ children }) {
         payload.transactions,
         existing,
         fromDay,
-        connection.dismissedRefs
+        connection.dismissedRefs,
+        [settings.displayName, connection.accountHolder].filter(Boolean)
       );
       const balance = pickBalance(payload.balances);
 
@@ -731,7 +732,7 @@ export function AppProvider({ children }) {
       }
       throw error;
     }
-  }, [user]);
+  }, [user, settings.displayName]);
 
   const syncBank = useCallback(async (connectionId) => {
     if (!bankSyncAvailable) return null;

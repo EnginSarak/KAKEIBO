@@ -544,7 +544,7 @@ export async function applyBankChanges(userId, { accountId, create, update, remo
     batch.set(doc(transactionsRef), {
       amount: entry.amount,
       transactionType: entry.transaction_type,
-      name: '',
+      name: entry.name || '',
       budgetId: null,
       accountId,
       date: entry.date,
