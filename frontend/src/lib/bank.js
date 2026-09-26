@@ -19,7 +19,12 @@ const request = async (path, options = {}) => {
   const token = await current.getIdToken();
   const response = await fetch(path, {
     ...options,
-    headers: { ...(options.headers || {}), Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+    headers: {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+      'Cache-Control': 'no-cache',
+    },
   });
 
   let payload = null;

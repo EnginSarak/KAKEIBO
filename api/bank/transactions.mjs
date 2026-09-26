@@ -4,6 +4,7 @@ import { getBalances, getTransactions } from '../_lib/enablebanking.mjs';
 const MAX_PAGES = 10;
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
     return res.status(405).json({ error: 'Method not allowed' });
@@ -21,6 +22,8 @@ export default async function handler(req, res) {
   const dateTo = url.searchParams.get('dateTo') || undefined;
 
   if (!accountId) return res.status(400).json({ error: 'accountId is required' });
+
+  console.log(`transactions requested from ${dateFrom || 'unset'} to ${dateTo || 'now'}`);
 
   try {
     const collected = [];
