@@ -16,6 +16,7 @@ import {
   limit,
   startAfter,
   getCountFromServer,
+  arrayUnion,
 } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -481,21 +482,6 @@ export async function clearBankConnection(userId) {
   await deleteDoc(bankConnectionRef(userId));
 }
 
-export async function getLastTransactionDate(userId, accountId) {
-  const transactionsRef = collection(db, 'users', userId, 'transactions');
-  try {
-    const snapshot = await getDocs(
-      query(transactionsRef, where('accountId', '==', accountId), orderBy('date', 'desc'), limit(1))
-    );
-    return snapshot.empty ? null : snapshot.docs[0].data().date || null;
-  } catch (error) {
-    if (!isMissingIndexError(error)) throw error;
-    const snapshot = await getDocs(query(transactionsRef, orderBy('date', 'desc'), limit(FALLBACK_CAP)));
-    const hit = snapshot.docs.map(d => d.data()).find(tx => tx.accountId === accountId);
-    return hit?.date || null;
-  }
-}
-
 export async function getTransactionsSince(userId, accountId, isoDate) {
   const transactionsRef = collection(db, 'users', userId, 'transactions');
   try {
@@ -562,4 +548,12 @@ export async function importBankTransactions(userId, { accountId, entries, balan
   }
 
   return { created, balance: null };
+}
+
+export async function dismissBankRef(userId, bankRef) {
+  await setDoc(
+    bankConnectionRef(userId),
+    { dismissedRefs: arrayUnion(bankRef), updatedAt: serverTimestamp() },
+    { merge: true }
+  );
 }

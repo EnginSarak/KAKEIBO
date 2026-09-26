@@ -158,21 +158,9 @@ export const normaliseTransaction = (entry) => {
   };
 };
 
-const sameAmount = (a, b) => Math.abs(a - b) < 0.005;
-
-export const selectNewTransactions = (entries, existing, fromDay) => {
-  const known = new Set(
-    (existing || []).map((tx) => tx.bankRef).filter(Boolean)
-  );
-
-  const manual = (existing || [])
-    .filter((tx) => tx.source !== 'bank')
-    .map((tx) => ({
-      day: dayOf(tx.date),
-      amount: Number(tx.amount) || 0,
-      type: tx.transactionType || tx.transaction_type || 'expense',
-      used: false,
-    }));
+export const selectNewTransactions = (entries, existing, fromDay, dismissedRefs) => {
+  const known = new Set((existing || []).map((tx) => tx.bankRef).filter(Boolean));
+  for (const ref of dismissedRefs || []) known.add(ref);
 
   const seen = new Map();
   const fresh = [];
@@ -193,15 +181,6 @@ export const selectNewTransactions = (entries, existing, fromDay) => {
     }
 
     if (known.has(ref)) {
-      skipped += 1;
-      continue;
-    }
-
-    const twin = manual.find(
-      (tx) => !tx.used && tx.day === entry.day && tx.type === entry.transaction_type && sameAmount(tx.amount, entry.amount)
-    );
-    if (twin) {
-      twin.used = true;
       skipped += 1;
       continue;
     }

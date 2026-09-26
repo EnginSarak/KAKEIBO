@@ -26,8 +26,8 @@ import {
   subscribeToBankConnection,
   saveBankConnection as dbSaveBankConnection,
   clearBankConnection as dbClearBankConnection,
-  getLastTransactionDate,
   getTransactionsSince,
+  dismissBankRef,
   importBankTransactions,
 } from '../lib/db';
 import {
@@ -46,6 +46,8 @@ import { isFirebaseConfigured } from '../lib/firebase';
 
 const DEMO_TRANSACTION_LIMIT = 10;
 const BANK_LOOKBACK_DAYS = 90;
+const BANK_STARTUP_FLOOR_MS = 5 * 60 * 1000;
+const BANK_AUTO_SYNC_CHECK_MS = 15 * 60 * 1000;
 
 const AppContext = createContext(null);
 
@@ -169,6 +171,7 @@ export function AppProvider({ children }) {
   const [bankSyncing, setBankSyncing] = useState(false);
   const [bankConnecting, setBankConnecting] = useState(false);
   const autoSyncRunning = useRef(false);
+  const startupSyncDone = useRef(false);
   const bankReturnHandled = useRef(false);
 
   const t = getTranslations(settings.language);
@@ -589,6 +592,11 @@ export function AppProvider({ children }) {
       const payload = toFirestoreTransaction(tx);
       await dbDeleteTransaction(user.uid, id, payload);
       applyLedgerDeltas(transactionDeleteDeltas(payload));
+      if (tx.source === 'bank' && tx.bankRef) {
+        dismissBankRef(user.uid, tx.bankRef).catch((error) => {
+          console.warn('Could not remember the deleted entry:', error.message);
+        });
+      }
     }
   }, [isDemo, user, transactions, applyLedgerDeltas]);
   const connectBank = useCallback(async () => {
@@ -636,18 +644,28 @@ export function AppProvider({ children }) {
 
     setBankSyncing(true);
     try {
-      const lastDate = await getLastTransactionDate(user.uid, connection.accountId);
-      const fallbackDay = shiftDay(dayOf(new Date().toISOString()), -90);
-      const fromDay = lastDate ? dayOf(lastDate) : fallbackDay;
-
-      const payload = await fetchBankTransactions(connection.bankAccountUid, shiftDay(fromDay, -BANK_LOOKBACK_DAYS));
+      const fetchFrom = shiftDay(dayOf(new Date().toISOString()), -BANK_LOOKBACK_DAYS);
       const existing = await getTransactionsSince(
         user.uid,
         connection.accountId,
-        `${shiftDay(fromDay, -1)}T00:00:00.000Z`
+        `${fetchFrom}T00:00:00.000Z`
       );
 
-      const { entries, skipped } = selectNewTransactions(payload.transactions, existing, fromDay);
+      const newestDay = (list) => list.map((tx) => dayOf(tx.date)).filter(Boolean).sort().pop();
+      const fromDay =
+        connection.importFrom ||
+        newestDay(existing.filter((tx) => tx.source === 'bank')) ||
+        newestDay(existing) ||
+        fetchFrom;
+
+      const payload = await fetchBankTransactions(connection.bankAccountUid, fetchFrom);
+
+      const { entries, skipped } = selectNewTransactions(
+        payload.transactions,
+        existing,
+        fromDay,
+        connection.dismissedRefs
+      );
       const balance = pickBalance(payload.balances);
 
       let applied = null;
@@ -662,7 +680,7 @@ export function AppProvider({ children }) {
       await dbSaveBankConnection(user.uid, {
         lastSyncAt: new Date().toISOString(),
         lastSyncCount: entries.length,
-        lastSyncFrom: fromDay,
+        ...(connection.importFrom ? {} : { importFrom: fromDay }),
       });
 
       return {
@@ -703,18 +721,31 @@ export function AppProvider({ children }) {
       .finally(() => setBankConnecting(false));
   }, [bankSyncAvailable, finishBankConnect, t]);
 
-  useEffect(() => {
-    if (!bankSyncAvailable || bankSyncing) return;
-    if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
-    const last = Date.parse(bankConnection.lastSyncAt || '') || 0;
-    if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
-    if (autoSyncRunning.current) return;
+  useEffect(() => { startupSyncDone.current = false; }, [user]);
 
-    autoSyncRunning.current = true;
-    syncBank()
-      .catch((error) => { console.warn('Bank sync failed:', error.message); })
-      .finally(() => { autoSyncRunning.current = false; });
-  }, [bankSyncAvailable, bankSyncing, bankConnection, syncBank]);
+  useEffect(() => {
+    if (!bankSyncAvailable) return;
+    if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
+
+    const run = (floorMs) => {
+      if (autoSyncRunning.current) return;
+      const last = Date.parse(bankConnection.lastSyncAt || '') || 0;
+      if (Date.now() - last < floorMs) return;
+
+      autoSyncRunning.current = true;
+      syncBank()
+        .catch((error) => { console.warn('Bank sync failed:', error.message); })
+        .finally(() => { autoSyncRunning.current = false; });
+    };
+
+    if (!startupSyncDone.current) {
+      startupSyncDone.current = true;
+      run(BANK_STARTUP_FLOOR_MS);
+    }
+
+    const timer = setInterval(() => run(AUTO_SYNC_INTERVAL_MS), BANK_AUTO_SYNC_CHECK_MS);
+    return () => clearInterval(timer);
+  }, [bankSyncAvailable, bankConnection, syncBank]);
 
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   const expenseBudgets = budgets.filter((b) => b.budget_type === 'expense').sort((a, b) => (a.order || 0) - (b.order || 0));
