@@ -685,6 +685,7 @@ export function AppProvider({ children }) {
         lastSyncAt: new Date().toISOString(),
         lastSyncCount: entries.length,
         lastSyncTruncated: Boolean(payload.truncated),
+        lastSyncAccountId: connection.accountId,
         ...(connection.importFrom ? {} : { importFrom: fromDay }),
       });
 
@@ -732,10 +733,12 @@ export function AppProvider({ children }) {
     if (!bankSyncAvailable) return;
     if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
 
+    const freshlyLinked = bankConnection.accountId !== bankConnection.lastSyncAccountId;
+
     const run = (floorMs) => {
       if (autoSyncRunning.current) return;
       const last = Date.parse(bankConnection.lastSyncAt || '') || 0;
-      if (Date.now() - last < floorMs) return;
+      if (!freshlyLinked && Date.now() - last < floorMs) return;
 
       autoSyncRunning.current = true;
       syncBank()
@@ -743,7 +746,7 @@ export function AppProvider({ children }) {
         .finally(() => { autoSyncRunning.current = false; });
     };
 
-    if (!startupSyncDone.current) {
+    if (freshlyLinked || !startupSyncDone.current) {
       startupSyncDone.current = true;
       run(BANK_STARTUP_FLOOR_MS);
     }
