@@ -73,7 +73,7 @@ export const call = async (path, { method = 'GET', body, query } = {}) => {
 
 export const listAspsps = (country = 'DE') => call('/aspsps', { query: { country } });
 
-export const startAuthorization = ({ aspsp, redirectUrl, state, validUntil, psuType = 'personal' }) =>
+export const startAuthorization = ({ aspsp, redirectUrl, state, validUntil, authMethod, psuType = 'personal' }) =>
   call('/auth', {
     method: 'POST',
     body: {
@@ -82,6 +82,7 @@ export const startAuthorization = ({ aspsp, redirectUrl, state, validUntil, psuT
       redirect_url: redirectUrl,
       state,
       psu_type: psuType,
+      ...(authMethod ? { auth_method: authMethod } : {}),
     },
   });
 

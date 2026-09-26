@@ -2,7 +2,7 @@ import { requireOwner } from '../_lib/auth.mjs';
 import { startAuthorization } from '../_lib/enablebanking.mjs';
 import { packState } from '../_lib/state.mjs';
 
-const ACCESS_DAYS = 180;
+const ACCESS_DAYS = 179;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -20,15 +20,21 @@ export default async function handler(req, res) {
   const redirectUrl = process.env.BANK_REDIRECT_URL || 'https://kakeibo.enginsarak.com/api/bank/callback';
   const validUntil = new Date(Date.now() + ACCESS_DAYS * 86400000).toISOString().replace(/\.\d+Z$/, 'Z');
 
+  const aspspName = (process.env.BANK_ASPSP_NAME || '').trim();
+  if (!aspspName) return res.status(503).json({ error: 'Bank sync is not configured' });
+
+  const authMethod = (process.env.BANK_AUTH_METHOD || '').trim();
+
   try {
     const result = await startAuthorization({
       aspsp: {
-        name: process.env.BANK_ASPSP_NAME || 'the bank',
+        name: aspspName,
         country: process.env.BANK_ASPSP_COUNTRY || 'DE',
       },
       redirectUrl,
       state: packState(owner.sub),
       validUntil,
+      ...(authMethod ? { authMethod } : {}),
     });
 
     return res.status(200).json({ url: result.url, authorizationId: result.authorization_id });

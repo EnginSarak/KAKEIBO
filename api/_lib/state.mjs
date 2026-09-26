@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-const STATE_TTL_SECONDS = 1800;
+const STATE_TTL_SECONDS = 5400;
 const SESSION_COOKIE = 'kakeibo_bank_session';
 const SESSION_TTL_SECONDS = 600;
 

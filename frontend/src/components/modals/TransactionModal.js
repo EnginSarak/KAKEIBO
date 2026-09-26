@@ -24,6 +24,7 @@ import {
 } from "../ui/alert-dialog";
 import { CurrencyInput } from "../ui/currency-input";
 import { cn } from "../../lib/utils";
+import { transactionLabel } from "../../lib/bank";
 import { useApp } from "../../context/AppContext";
 import { toast } from "sonner";
 
@@ -39,6 +40,7 @@ export function TransactionModal({ open, onOpenChange, transaction = null, defau
   } = useApp();
   
   const isEditing = !!transaction;
+  const isFromBank = transaction?.source === "bank";
   
   const [type, setType] = useState("expense");
   const [amountValue, setAmountValue] = useState(0);
@@ -84,6 +86,7 @@ export function TransactionModal({ open, onOpenChange, transaction = null, defau
       name: name || "...",
       budget_id: budgetId === "none" ? null : budgetId,
       account_id: accountId,
+      ...(transaction?.needsReview ? { needsReview: false } : {}),
     };
 
     setIsSaving(true);
@@ -122,6 +125,15 @@ export function TransactionModal({ open, onOpenChange, transaction = null, defau
           </DialogHeader>
           
           <div className="space-y-6 py-4">
+            {isFromBank && (
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/5 border border-primary/15">
+                <span className="mt-1.5 w-2.5 h-2.5 rounded-full bg-white ring-2 ring-primary/50 flex-shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  {transaction?.needsReview ? t.bankSyncReviewHint : t.bankSyncFromBank}
+                </p>
+              </div>
+            )}
+
             <div className="segmented-track flex p-1 rounded-xl">
               {[
                 { key: "expense", Icon: Minus, label: t.expense },
@@ -172,7 +184,7 @@ export function TransactionModal({ open, onOpenChange, transaction = null, defau
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="..."
+                placeholder={transaction ? transactionLabel(transaction, t) : "..."}
                 className="h-12"
                 data-testid="transaction-name-input"
               />

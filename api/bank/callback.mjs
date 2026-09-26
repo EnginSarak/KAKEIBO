@@ -4,7 +4,8 @@ import { sessionCookie, unpackState } from '../_lib/state.mjs';
 const APP_URL = process.env.BANK_APP_URL || 'https://kakeibo.enginsarak.com';
 
 const back = (res, status) => {
-  res.setHeader('Location', `${APP_URL}/settings?bank=${status}`);
+  console.log(`bank callback outcome: ${status}`);
+  res.setHeader('Location', `${APP_URL}/app?bank=${status}`);
   return res.status(302).end();
 };
 

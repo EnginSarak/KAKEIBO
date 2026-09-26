@@ -12,6 +12,7 @@ import {
   Sun,
   ChevronRight,
   AlertTriangle,
+  Landmark,
 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -46,11 +47,28 @@ import { cn } from "../lib/utils";
 import { useApp } from "../context/AppContext";
 import { changePassword, changeEmail, deleteUserAccount } from "../lib/auth";
 import { languageNames } from "../lib/i18n";
+import { maskIban } from "../lib/bank";
 import { currencyNames } from "../lib/currency";
 import { toast } from "sonner";
 
 export function SettingsPage({ onBack, onExitDemo }) {
-  const { t, settings, updateSettings, isDemo, user, logout } = useApp();
+  const {
+    t,
+    settings,
+    updateSettings,
+    isDemo,
+    user,
+    logout,
+    accounts,
+    bankSyncAvailable,
+    bankConnection,
+    bankSyncing,
+    connectBank,
+    bankConnecting,
+    updateBankConnection,
+    disconnectBank,
+    syncBank,
+  } = useApp();
   
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -62,6 +80,61 @@ export function SettingsPage({ onBack, onExitDemo }) {
   const [editingEmail, setEditingEmail] = useState(false);
   const [tempName, setTempName] = useState(settings.displayName);
   const [tempEmail, setTempEmail] = useState(settings.email);
+  const [bankBusy, setBankBusy] = useState(false);
+
+  const bankConnected = Boolean(bankConnection?.bankAccountUid);
+
+  const formatDate = (value) => {
+    if (!value) return t.bankSyncNever;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return t.bankSyncNever;
+    return new Intl.DateTimeFormat(
+      settings.language === "en" ? "en-GB" : `${settings.language}-${settings.language.toUpperCase()}`,
+      { day: "2-digit", month: "2-digit", year: "numeric" }
+    ).format(parsed);
+  };
+
+  const bankErrorText = (error) => {
+    if (error?.status === 404) return t.bankSyncErrorSession;
+    return t.bankSyncErrorGeneric;
+  };
+
+  const handleBankConnect = async () => {
+    setBankBusy(true);
+    try {
+      await connectBank();
+    } catch (error) {
+      toast.error(bankErrorText(error));
+      setBankBusy(false);
+    }
+  };
+
+  const handleBankSync = async () => {
+    try {
+      const result = await syncBank();
+      if (!result) return;
+      if (result.imported > 0) {
+        toast.success(`${t.bankSyncImported} ${result.imported}`, {
+          description: result.skipped > 0 ? `${t.bankSyncSkipped} ${result.skipped}` : t.bankSyncUncategorised,
+        });
+      } else {
+        toast.success(t.bankSyncNoNew, {
+          description: result.balance !== null ? t.bankSyncBalanceUpdated : undefined,
+        });
+      }
+    } catch (error) {
+      toast.error(bankErrorText(error));
+    }
+  };
+
+  const handleBankDisconnect = async () => {
+    try {
+      await disconnectBank();
+      toast.success(t.bankSyncDisconnected);
+    } catch (error) {
+      toast.error(bankErrorText(error));
+    }
+  };
   
   const handleSaveName = () => {
     updateSettings({ displayName: tempName });
@@ -388,6 +461,137 @@ export function SettingsPage({ onBack, onExitDemo }) {
             </div>
           </section>
           
+          {bankSyncAvailable && (
+            <section className="space-y-4">
+              <h2 className="flex items-center gap-2 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                {t.bankSync}
+                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] tracking-normal normal-case">
+                  {t.bankSyncBeta}
+                </span>
+              </h2>
+
+              <div className="rounded-2xl bg-card border border-border overflow-hidden" data-testid="bank-sync-section">
+                <div className="p-4 flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Landmark className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">
+                      {bankConnected ? t.bankSyncConnected : t.bankSyncNotConnected}
+                    </p>
+                    <p className="text-sm text-muted-foreground break-words">
+                      {bankConnected
+                        ? [
+                            bankConnection.bankAccountName || bankConnection.bankName,
+                            maskIban(bankConnection.bankAccountIban),
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : t.bankSyncIntro}
+                    </p>
+                  </div>
+                </div>
+
+                {!bankConnected && (
+                  <>
+                    <Separator />
+                    <div className="p-4">
+                      <Button
+                        className="w-full h-12 bg-primary hover:bg-primary/90"
+                        onClick={handleBankConnect}
+                        disabled={bankBusy || bankConnecting}
+                        data-testid="bank-connect-btn"
+                      >
+                        {bankBusy || bankConnecting ? t.bankSyncConnecting : t.bankSyncConnect}
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                {bankConnected && (
+                  <>
+                    <Separator />
+                    <div className="p-4 space-y-2">
+                      <Label>{t.bankSyncAccount}</Label>
+                      <Select
+                        value={bankConnection.accountId || ""}
+                        onValueChange={(value) => updateBankConnection({ accountId: value })}
+                        disabled={accounts.length === 0}
+                      >
+                        <SelectTrigger className="h-12" data-testid="bank-account-select">
+                          <SelectValue placeholder={t.bankSyncSelectAccount} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>
+                              {account.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {accounts.length === 0 ? t.bankSyncNoAccounts : t.bankSyncAccountHint}
+                      </p>
+                    </div>
+
+                    <Separator />
+
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{t.bankSyncAuto}</p>
+                        <p className="text-sm text-muted-foreground">{t.bankSyncAutoHint}</p>
+                      </div>
+                      <Switch
+                        checked={bankConnection.autoSync !== false}
+                        onCheckedChange={(checked) => updateBankConnection({ autoSync: checked })}
+                        data-testid="bank-autosync-switch"
+                      />
+                    </div>
+
+                    <Separator />
+
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">{t.bankSyncLastSync}</span>
+                        <span className="text-foreground tabular-nums">
+                          {formatDate(bankConnection.lastSyncAt)}
+                        </span>
+                      </div>
+                      {bankConnection.validUntil && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">{t.bankSyncValidUntil}</span>
+                          <span className="text-foreground tabular-nums">
+                            {formatDate(bankConnection.validUntil)}
+                          </span>
+                        </div>
+                      )}
+                      <Button
+                        className="w-full h-12 bg-primary hover:bg-primary/90"
+                        onClick={handleBankSync}
+                        disabled={bankSyncing || !bankConnection.accountId}
+                        data-testid="bank-sync-btn"
+                      >
+                        {bankSyncing ? t.bankSyncFetching : t.bankSyncFetch}
+                      </Button>
+                      <p className="text-xs text-muted-foreground">{t.bankSyncRenewHint}</p>
+                    </div>
+
+                    <Separator />
+
+                    <div
+                      className="p-4 flex items-center justify-between cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={handleBankDisconnect}
+                      data-testid="bank-disconnect-btn"
+                    >
+                      <p className="font-medium text-destructive">{t.bankSyncDisconnect}</p>
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
+
           <section className="space-y-4">
             <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Sicherheit

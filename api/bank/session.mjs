@@ -2,6 +2,28 @@ import { requireOwner } from '../_lib/auth.mjs';
 import { getSession } from '../_lib/enablebanking.mjs';
 import { clearedSessionCookie, readSessionCookie } from '../_lib/state.mjs';
 
+const readAccount = (entry) => {
+  if (typeof entry === 'string') return { id: entry, iban: null, name: null, currency: null };
+  if (!entry || typeof entry !== 'object') return { id: null };
+
+  const identifier = entry.account_id;
+  const iban = typeof identifier === 'string' ? identifier : identifier?.iban || entry.iban || null;
+
+  return {
+    id: entry.uid || entry.resource_id || entry.id || (typeof identifier === 'string' ? identifier : null),
+    iban,
+    name: entry.name || entry.product || entry.details || null,
+    currency: entry.currency || null,
+  };
+};
+
+const readAccounts = (session) => {
+  const source = Array.isArray(session.accounts_data) && session.accounts_data.length
+    ? session.accounts_data
+    : session.accounts || [];
+  return source.map(readAccount).filter((account) => account.id);
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -26,12 +48,8 @@ export default async function handler(req, res) {
     res.setHeader('Set-Cookie', clearedSessionCookie());
     return res.status(200).json({
       sessionId,
-      accounts: (session.accounts || []).map((account) => ({
-        id: account.uid || account.account_id,
-        iban: account.account_id?.iban || account.iban || null,
-        name: account.name || account.product || null,
-        currency: account.currency || null,
-      })),
+      bank: session.aspsp?.name || null,
+      accounts: readAccounts(session),
       validUntil: session.access?.valid_until || null,
     });
   } catch (error) {

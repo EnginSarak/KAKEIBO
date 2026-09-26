@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { getTranslations } from '../lib/i18n';
 import { onAuthChange, getUserSettings, updateUserSettings, logOut, resendVerificationEmail, reloadUser, defaultDisplayName, completeGoogleRedirect } from '../lib/auth';
 import {
@@ -23,11 +23,29 @@ import {
   redistributeRemainder as dbRedistributeRemainder,
   persistBudgetReset as dbPersistBudgetReset,
   updateBudgetCarryover as dbUpdateBudgetCarryover,
+  subscribeToBankConnection,
+  saveBankConnection as dbSaveBankConnection,
+  clearBankConnection as dbClearBankConnection,
+  getLastTransactionDate,
+  getTransactionsSince,
+  importBankTransactions,
 } from '../lib/db';
+import {
+  AUTO_SYNC_INTERVAL_MS,
+  dayOf,
+  fetchBankTransactions,
+  isBankSyncUser,
+  pickBalance,
+  readBankSession,
+  selectNewTransactions,
+  shiftDay,
+  startBankConnect,
+} from '../lib/bank';
 import { generateId } from '../lib/utils';
 import { isFirebaseConfigured } from '../lib/firebase';
 
 const DEMO_TRANSACTION_LIMIT = 10;
+const BANK_LOOKBACK_DAYS = 90;
 
 const AppContext = createContext(null);
 
@@ -113,6 +131,7 @@ const toFirestoreTransaction = (data) => ({
   budgetId: data.budget_id !== undefined ? data.budget_id : (data.budgetId || null),
   accountId: data.account_id || data.accountId || '',
   date: data.date || new Date().toISOString(),
+  ...(data.needsReview !== undefined ? { needsReview: Boolean(data.needsReview) } : {}),
 });
 
 export function AppProvider({ children }) {
@@ -146,8 +165,15 @@ export function AppProvider({ children }) {
   const [budgets, setBudgets] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bankConnection, setBankConnection] = useState(null);
+  const [bankSyncing, setBankSyncing] = useState(false);
+  const [bankConnecting, setBankConnecting] = useState(false);
+  const autoSyncRunning = useRef(false);
+  const bankReturnHandled = useRef(false);
 
   const t = getTranslations(settings.language);
+
+  const bankSyncAvailable = !isDemo && !!user && isBankSyncUser(user);
 
   const resolvedTheme = settings.theme === 'system' ? systemTheme : settings.theme;
 
@@ -266,6 +292,10 @@ export function AppProvider({ children }) {
     const unsubTransactions = subscribeToTransactions(user.uid, (data) => setTransactions(data.map(mapTransaction)));
     return () => { unsubAccounts(); unsubBudgets(); unsubTransactions(); };
   }, [user, isDemo]);
+  useEffect(() => {
+    if (!bankSyncAvailable) { setBankConnection(null); return; }
+    return subscribeToBankConnection(user.uid, (data) => setBankConnection(data));
+  }, [bankSyncAvailable, user]);
   useEffect(() => {
     if (isDemo && !loading && !authLoading) {
       saveToStorage(STORAGE_KEY, { accounts, budgets, transactions });
@@ -561,6 +591,131 @@ export function AppProvider({ children }) {
       applyLedgerDeltas(transactionDeleteDeltas(payload));
     }
   }, [isDemo, user, transactions, applyLedgerDeltas]);
+  const connectBank = useCallback(async () => {
+    const result = await startBankConnect();
+    if (!result?.url) throw new Error('No authorisation url');
+    window.location.href = result.url;
+  }, []);
+
+  const finishBankConnect = useCallback(async () => {
+    if (!bankSyncAvailable) return null;
+    const session = await readBankSession();
+    const bankAccount = (session.accounts || [])[0] || null;
+    if (!bankAccount?.id) throw new Error('No bank account in session');
+
+    const connection = {
+      provider: 'enablebanking',
+      sessionId: session.sessionId,
+      bankName: session.bank || null,
+      bankAccountUid: bankAccount.id,
+      bankAccountIban: bankAccount.iban || null,
+      bankAccountName: bankAccount.name || null,
+      bankAccountCurrency: bankAccount.currency || null,
+      validUntil: session.validUntil || null,
+      connectedAt: new Date().toISOString(),
+      autoSync: true,
+    };
+    await dbSaveBankConnection(user.uid, connection);
+    return connection;
+  }, [bankSyncAvailable, user]);
+
+  const updateBankConnection = useCallback(async (data) => {
+    if (!bankSyncAvailable) return;
+    await dbSaveBankConnection(user.uid, data);
+  }, [bankSyncAvailable, user]);
+
+  const disconnectBank = useCallback(async () => {
+    if (!bankSyncAvailable) return;
+    await dbClearBankConnection(user.uid);
+  }, [bankSyncAvailable, user]);
+
+  const syncBank = useCallback(async () => {
+    if (!bankSyncAvailable) return null;
+    const connection = bankConnection;
+    if (!connection?.bankAccountUid || !connection?.accountId) return null;
+
+    setBankSyncing(true);
+    try {
+      const lastDate = await getLastTransactionDate(user.uid, connection.accountId);
+      const fallbackDay = shiftDay(dayOf(new Date().toISOString()), -90);
+      const fromDay = lastDate ? dayOf(lastDate) : fallbackDay;
+
+      const payload = await fetchBankTransactions(connection.bankAccountUid, shiftDay(fromDay, -BANK_LOOKBACK_DAYS));
+      const existing = await getTransactionsSince(
+        user.uid,
+        connection.accountId,
+        `${shiftDay(fromDay, -1)}T00:00:00.000Z`
+      );
+
+      const { entries, skipped } = selectNewTransactions(payload.transactions, existing, fromDay);
+      const balance = pickBalance(payload.balances);
+
+      let applied = null;
+      if (entries.length || balance !== null) {
+        applied = await importBankTransactions(user.uid, {
+          accountId: connection.accountId,
+          entries,
+          balance,
+        });
+      }
+
+      await dbSaveBankConnection(user.uid, {
+        lastSyncAt: new Date().toISOString(),
+        lastSyncCount: entries.length,
+        lastSyncFrom: fromDay,
+      });
+
+      return {
+        imported: entries.length,
+        skipped,
+        truncated: Boolean(payload.truncated),
+        balance: applied ? applied.balance : null,
+      };
+    } finally {
+      setBankSyncing(false);
+    }
+  }, [bankSyncAvailable, bankConnection, user]);
+
+  useEffect(() => {
+    if (!bankSyncAvailable || bankReturnHandled.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('bank');
+    if (!status) return;
+
+    bankReturnHandled.current = true;
+    window.history.replaceState({}, '', window.location.pathname);
+
+    const notify = async (kind, message) => {
+      const { toast } = await import('sonner');
+      toast[kind](message);
+    };
+
+    if (status !== 'connected') {
+      notify('error', status === 'denied' ? t.bankSyncErrorDenied : t.bankSyncErrorGeneric);
+      return;
+    }
+
+    setBankConnecting(true);
+    finishBankConnect()
+      .then(() => notify('success', t.bankSyncConnectedNow))
+      .catch(() => notify('error', t.bankSyncErrorSession))
+      .finally(() => setBankConnecting(false));
+  }, [bankSyncAvailable, finishBankConnect, t]);
+
+  useEffect(() => {
+    if (!bankSyncAvailable || bankSyncing) return;
+    if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
+    const last = Date.parse(bankConnection.lastSyncAt || '') || 0;
+    if (Date.now() - last < AUTO_SYNC_INTERVAL_MS) return;
+    if (autoSyncRunning.current) return;
+
+    autoSyncRunning.current = true;
+    syncBank()
+      .catch((error) => { console.warn('Bank sync failed:', error.message); })
+      .finally(() => { autoSyncRunning.current = false; });
+  }, [bankSyncAvailable, bankSyncing, bankConnection, syncBank]);
+
   const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0);
   const expenseBudgets = budgets.filter((b) => b.budget_type === 'expense').sort((a, b) => (a.order || 0) - (b.order || 0));
   const accumulatingBudgets = budgets.filter((b) => b.budget_type === 'accumulating').sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -695,6 +850,8 @@ export function AppProvider({ children }) {
     createBudget, updateBudget, deleteBudget, reorderBudgets, resetBudget, getBudgetById, setBudgetCarryover,
     createTransaction, updateTransaction, deleteTransaction, getTransactionsForAccount, getTransactionsForBudget,
     calculatePendingRemainder, getBudgetPendingRemainder, redistributeRemainder,
+    bankSyncAvailable, bankConnection, bankSyncing, bankConnecting,
+    connectBank, finishBankConnect, updateBankConnection, disconnectBank, syncBank,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

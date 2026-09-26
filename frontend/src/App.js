@@ -48,7 +48,11 @@ const detectLanguage = () => {
   return supported.includes(browserLang) ? browserLang : 'de';
 };
 function MainAppContent({ onExitDemo }) {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(() => (
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('bank')
+      ? 'settings'
+      : 'dashboard'
+  ));
   const [selectedBudgetId, setSelectedBudgetId] = useState(null);
   const [budgetOrigin, setBudgetOrigin] = useState('dashboard');
   const reduce = useReducedMotion();

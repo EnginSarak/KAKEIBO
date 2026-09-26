@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   getDoc,
   getDocs,
   updateDoc,
@@ -462,4 +463,103 @@ export async function getTransactionsCount(userId, options = {}) {
     console.warn('getTransactionsCount failed:', error.message);
     return -1;
   }
+}
+
+const bankConnectionRef = (userId) => doc(db, 'users', userId, 'settings', 'bankSync');
+
+export function subscribeToBankConnection(userId, callback) {
+  return onSnapshot(bankConnectionRef(userId), (snapshot) => {
+    callback(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+  });
+}
+
+export async function saveBankConnection(userId, data) {
+  await setDoc(bankConnectionRef(userId), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function clearBankConnection(userId) {
+  await deleteDoc(bankConnectionRef(userId));
+}
+
+export async function getLastTransactionDate(userId, accountId) {
+  const transactionsRef = collection(db, 'users', userId, 'transactions');
+  try {
+    const snapshot = await getDocs(
+      query(transactionsRef, where('accountId', '==', accountId), orderBy('date', 'desc'), limit(1))
+    );
+    return snapshot.empty ? null : snapshot.docs[0].data().date || null;
+  } catch (error) {
+    if (!isMissingIndexError(error)) throw error;
+    const snapshot = await getDocs(query(transactionsRef, orderBy('date', 'desc'), limit(FALLBACK_CAP)));
+    const hit = snapshot.docs.map(d => d.data()).find(tx => tx.accountId === accountId);
+    return hit?.date || null;
+  }
+}
+
+export async function getTransactionsSince(userId, accountId, isoDate) {
+  const transactionsRef = collection(db, 'users', userId, 'transactions');
+  try {
+    const snapshot = await getDocs(
+      query(transactionsRef, where('accountId', '==', accountId), where('date', '>=', isoDate), orderBy('date', 'asc'))
+    );
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch (error) {
+    if (!isMissingIndexError(error)) throw error;
+    const snapshot = await getDocs(
+      query(transactionsRef, where('date', '>=', isoDate), orderBy('date', 'asc'), limit(FALLBACK_CAP))
+    );
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() })).filter(tx => tx.accountId === accountId);
+  }
+}
+
+const IMPORT_CHUNK = 400;
+
+export async function importBankTransactions(userId, { accountId, entries, balance }) {
+  const transactionsRef = collection(db, 'users', userId, 'transactions');
+  const created = [];
+
+  for (let start = 0; start < entries.length; start += IMPORT_CHUNK) {
+    const chunk = entries.slice(start, start + IMPORT_CHUNK);
+    const batch = writeBatch(db);
+    chunk.forEach((entry) => {
+      const ref = doc(transactionsRef);
+      const data = {
+        amount: entry.amount,
+        transactionType: entry.transaction_type,
+        name: '',
+        budgetId: null,
+        accountId,
+        date: entry.date,
+        source: 'bank',
+        bankRef: entry.bankRef,
+        needsReview: true,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      batch.set(ref, data);
+      created.push({ id: ref.id, ...data });
+    });
+    await batch.commit();
+  }
+
+  const accountRef = doc(db, 'users', userId, 'accounts', accountId);
+  if (typeof balance === 'number' && Number.isFinite(balance)) {
+    await updateDoc(accountRef, { balance, updatedAt: serverTimestamp() });
+    return { created, balance };
+  }
+
+  if (created.length) {
+    const snapshot = await getDoc(accountRef);
+    if (snapshot.exists()) {
+      const delta = created.reduce(
+        (sum, tx) => sum + (tx.transactionType === 'expense' ? -tx.amount : tx.amount),
+        0
+      );
+      const next = (snapshot.data().balance || 0) + delta;
+      await updateDoc(accountRef, { balance: next, updatedAt: serverTimestamp() });
+      return { created, balance: next };
+    }
+  }
+
+  return { created, balance: null };
 }
