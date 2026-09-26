@@ -8,7 +8,7 @@
 
 # KAKEIBO
 
-**Version 1.0.1**
+**Version 1.1.0**
 
 *A personal budgeting app built on the Japanese kakeibo method,<br/>for dividing your money up before you spend it*
 
@@ -209,6 +209,16 @@ Data belonging to an account is stored per user and is only readable by that use
 ---
 
 ## Changelog
+
+### 1.1.0 (2026-09-26)
+
+#### Added
+- Bank Sync, in beta and switched on for a small number of accounts. Transactions come
+  from the bank instead of being typed in, including the ones the bank has only set aside
+  so far. New entries arrive without a budget and carry a mark until you have given them
+  one, and the account balance is taken from the bank on every sync.
+
+---
 
 ### 1.0.1 (2026-09-23)
 
