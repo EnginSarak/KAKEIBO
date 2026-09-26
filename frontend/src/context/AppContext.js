@@ -46,7 +46,8 @@ import { isFirebaseConfigured } from '../lib/firebase';
 
 const DEMO_TRANSACTION_LIMIT = 10;
 const BANK_LOOKBACK_DAYS = 90;
-const BANK_STARTUP_FLOOR_MS = 5 * 60 * 1000;
+const BANK_STARTUP_FLOOR_MS = 60 * 60 * 1000;
+const BANK_RATE_LIMIT_PAUSE_MS = 6 * 60 * 60 * 1000;
 const BANK_AUTO_SYNC_CHECK_MS = 15 * 60 * 1000;
 
 const AppContext = createContext(null);
@@ -695,6 +696,11 @@ export function AppProvider({ children }) {
         truncated: Boolean(payload.truncated),
         balance: applied ? applied.balance : null,
       };
+    } catch (error) {
+      if (error.status === 429) {
+        await dbSaveBankConnection(user.uid, { rateLimitedAt: new Date().toISOString() });
+      }
+      throw error;
     } finally {
       setBankSyncing(false);
     }
@@ -734,6 +740,8 @@ export function AppProvider({ children }) {
     if (!bankConnection?.autoSync || !bankConnection?.accountId || !bankConnection?.bankAccountUid) return;
 
     const freshlyLinked = bankConnection.accountId !== bankConnection.lastSyncAccountId;
+    const blockedUntil = (Date.parse(bankConnection.rateLimitedAt || '') || 0) + BANK_RATE_LIMIT_PAUSE_MS;
+    if (Date.now() < blockedUntil) return;
 
     const run = (floorMs) => {
       if (autoSyncRunning.current) return;

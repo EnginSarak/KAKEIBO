@@ -96,6 +96,7 @@ export function SettingsPage({ onBack, onExitDemo }) {
 
   const bankErrorText = (error) => {
     if (error?.status === 404) return t.bankSyncErrorSession;
+    if (error?.status === 429) return t.bankSyncErrorRateLimit;
     return t.bankSyncErrorGeneric;
   };
 
