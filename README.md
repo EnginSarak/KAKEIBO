@@ -18,6 +18,7 @@
 ![Firebase](https://img.shields.io/badge/Firebase-Auth%20%2B%20Firestore-FFCA28?logo=firebase&logoColor=black)
 ![Tailwind](https://img.shields.io/badge/Tailwind-3-06B6D4?logo=tailwindcss&logoColor=white)
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)
+![Version](https://img.shields.io/badge/version-1.1.0-4C8EDA)
 ![Status](https://img.shields.io/badge/status-Active-brightgreen)
 
 **[kakeibo.enginsarak.com](https://kakeibo.enginsarak.com)**
