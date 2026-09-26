@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Checkbox } from "../components/ui/checkbox";
-import { signIn, signUp, resetPassword } from "../lib/auth";
+import { signIn, signUp, resetPassword, signInWithGoogle } from "../lib/auth";
 import { useApp } from "../context/AppContext";
 import { authTarget } from "../lib/firebase";
 import { toast } from "sonner";
@@ -26,12 +26,38 @@ const getFirebaseErrorMessage = (error, t) => {
   return messages[code] || error?.message || t.errorOccurred;
 };
 
+function GoogleMark() {
+  return (
+    <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.2C12.4 13.6 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.1 24.6c0-1.6-.1-3.2-.4-4.6H24v9.1h12.4c-.5 2.9-2.2 5.3-4.6 7l7.2 5.6c4.2-3.9 6.6-9.6 6.6-17.1z" />
+      <path fill="#FBBC05" d="M10.5 28.6c-.5-1.4-.8-2.9-.8-4.6s.3-3.2.8-4.6l-7.9-6.2C1 16.4 0 20.1 0 24s1 7.6 2.6 10.8l7.9-6.2z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.2-5.6c-2 1.4-4.6 2.2-8.7 2.2-6.3 0-11.6-4.1-13.5-9.9l-7.9 6.2C6.5 42.6 14.6 48 24 48z" />
+    </svg>
+  );
+}
+
 export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSuccess, language = "de" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const t = getTranslations(language);
+
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle(language);
+      if (user) onSuccess?.();
+    } catch (error) {
+      const abgebrochen = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"];
+      if (!abgebrochen.includes(error.code)) toast.error(t.googleFailed);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -146,6 +172,29 @@ export function LoginPage({ onBack, onSwitchToSignup, onForgotPassword, onSucces
             </Button>
           </form>
 
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-background px-3 text-xs uppercase tracking-wider text-muted-foreground">
+                {t.orSeparator}
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 text-base"
+            onClick={handleGoogle}
+            disabled={googleLoading || loading}
+            data-testid="google-auth-btn"
+          >
+            {googleLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <GoogleMark />}
+            {t.googleSignIn}
+          </Button>
+
           <p className="text-center mt-6 text-sm text-muted-foreground">
             {t.dontHaveAccount}{" "}
             <button
@@ -170,8 +219,22 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const t = getTranslations(language);
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    try {
+      const user = await signInWithGoogle(language);
+      if (user) onSuccess?.();
+    } catch (error) {
+      const abgebrochen = ["auth/popup-closed-by-user", "auth/cancelled-popup-request"];
+      if (!abgebrochen.includes(error.code)) toast.error(t.googleFailed);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -336,6 +399,29 @@ export function SignupPage({ onBack, onSwitchToLogin, onSuccess, language = "de"
             </Button>
           </form>
 
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-background px-3 text-xs uppercase tracking-wider text-muted-foreground">
+                {t.orSeparator}
+              </span>
+            </div>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full h-12 text-base"
+            onClick={handleGoogle}
+            disabled={googleLoading || loading}
+            data-testid="google-auth-btn"
+          >
+            {googleLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <GoogleMark />}
+            {t.googleSignUp}
+          </Button>
+
           <p className="text-center mt-6 text-sm text-muted-foreground">
             {t.alreadyHaveAccount}{" "}
             <button
@@ -367,7 +453,7 @@ export function ForgotPasswordPage({ onBack, language = "de" }) {
 
     setLoading(true);
     try {
-      await resetPassword(email.trim());
+      await resetPassword(email.trim(), language);
       setSent(true);
       toast.success(t.resetEmailSent);
     } catch (error) {

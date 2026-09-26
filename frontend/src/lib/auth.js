@@ -15,6 +15,10 @@ import {
   checkActionCode,
   verifyPasswordResetCode,
   confirmPasswordReset,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
@@ -53,6 +57,73 @@ export async function signUp(email, password, displayName) {
   return user;
 }
 
+const googleProvider = () => {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+};
+
+async function ensureUserDoc(user, lang) {
+  const ref = doc(db, 'users', user.uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) return;
+
+  await setDoc(ref, {
+    displayName: user.displayName || defaultDisplayName(user.email),
+    email: user.email || '',
+    language: lang,
+    currency: 'EUR',
+    theme: 'system',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
+const remember = (key, value) => {
+  try {
+    window.sessionStorage.setItem(key, value);
+  } catch (error) {
+    void error;
+  }
+};
+
+const recall = (key) => {
+  try {
+    const value = window.sessionStorage.getItem(key);
+    window.sessionStorage.removeItem(key);
+    return value;
+  } catch (error) {
+    return null;
+  }
+};
+
+export async function signInWithGoogle(lang = 'de') {
+  try {
+    const result = await signInWithPopup(auth, googleProvider());
+    await ensureUserDoc(result.user, lang);
+    return result.user;
+  } catch (error) {
+    const weiterPerUmleitung = [
+      'auth/popup-blocked',
+      'auth/operation-not-supported-in-this-environment',
+      'auth/web-storage-unsupported',
+    ];
+    if (weiterPerUmleitung.includes(error.code)) {
+      remember('kakeibo_google_lang', lang);
+      await signInWithRedirect(auth, googleProvider());
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function completeGoogleRedirect() {
+  const result = await getRedirectResult(auth);
+  if (!result || !result.user) return null;
+  await ensureUserDoc(result.user, recall('kakeibo_google_lang') || 'de');
+  return result.user;
+}
+
 export async function signIn(email, password) {
   const userCredential = await signInWithEmailAndPassword(auth, email, password);
   return userCredential.user;
@@ -73,7 +144,17 @@ export async function logOut() {
   await signOut(auth);
 }
 
-export async function resetPassword(email) {
+export async function resetPassword(email, lang = 'de') {
+  try {
+    const response = await fetch('/api/auth/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, lang }),
+    });
+    if (response.ok) return;
+  } catch (error) {
+    void error;
+  }
   await sendPasswordResetEmail(auth, email);
 }
 

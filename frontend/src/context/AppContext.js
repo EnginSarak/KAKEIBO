@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getTranslations } from '../lib/i18n';
-import { onAuthChange, getUserSettings, updateUserSettings, logOut, resendVerificationEmail, reloadUser, defaultDisplayName } from '../lib/auth';
+import { onAuthChange, getUserSettings, updateUserSettings, logOut, resendVerificationEmail, reloadUser, defaultDisplayName, completeGoogleRedirect } from '../lib/auth';
 import {
   subscribeToAccounts,
   subscribeToBudgets,
@@ -244,6 +244,7 @@ export function AppProvider({ children }) {
       applyFirebaseUser(null);
       return;
     }
+    completeGoogleRedirect().catch(() => {});
     const unsubscribe = onAuthChange((firebaseUser) => { applyFirebaseUser(firebaseUser); });
     return () => unsubscribe();
   }, [applyFirebaseUser]);
