@@ -10,8 +10,7 @@
 
 **Version 1.1.0**
 
-*A personal budgeting app inspired by the Japanese Kakeibo method
-,<br/>for dividing your money up before you spend it*
+*A personal budgeting app inspired by the Japanese Kakeibo method,<br/>for dividing your money up before you spend it*
 
 *Built by [Engin Sarak](https://github.com/EnginSarak)*
 
