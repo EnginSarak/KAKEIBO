@@ -19,7 +19,7 @@ export const landingTranslations = {
     answer3: "Wiederkehrende Kosten wie Lebensmittel oder Handyrechnungen bekommen eigene Ausgaben-Budgets, die bei jedem Intervall wieder auf den vollen Betrag zurückgesetzt werden. Jede Ausgabe weist du dem passenden Topf zu. Ein Füllstandsbalken zeigt dir, wie viel noch verfügbar ist.",
     answer4: "Der Transaktionsverlauf zeigt dir ganz genau, was durch welches Budget geflossen ist. Wenn ein Topf an der Realität vorbeidriftet, kannst du den aktuellen Stand direkt korrigieren, ohne eine falsche Buchung erfinden zu müssen. So lernst du aus deinen Ausgaben und kannst deine Budgets flexibel anpassen.",
     remainderTitle: "Der Rest ist der wichtigste Teil",
-    remainderBody: "Bleiben in einem auslaufenden Budget wie z. B. in einem Lebensmittel-Topf 40 Euro übrig, geht dieses Geld nicht verloren. Es wird zu freiem Guthaben. Du entscheidest am Ende des Intervalls selbst: Verschiebst du den Rest in den Urlaub, auf ein anderes Budget oder lässt du ihn für die nächsten Einkäufe stehen?",
+    remainderBody: "Bleiben in einem auslaufenden Budget wie z. B. in einem Lebensmittel-Topf 45 Euro übrig, geht dieses Geld nicht verloren. Es wird zu freiem Guthaben. Du entscheidest am Ende des Intervalls selbst: Verschiebst du den Rest in den Urlaub, auf ein anderes Budget oder lässt du ihn für die nächsten Einkäufe stehen?",
     exampleTx1: "Wocheneinkauf",
     exampleTx2: "Tanken",
     exampleTx3: "Kino",

@@ -153,10 +153,8 @@ export const normaliseTransaction = (entry) => {
 
   const isIncome = (entry?.credit_debit_indicator || '').toUpperCase() === 'CRDT';
   const raw = entry?.booking_date || entry?.value_date || entry?.transaction_date;
-  const date = raw ? toIsoDate(raw) : null;
-  if (!date) return null;
-
-  const day = dayOf(raw);
+  const date = (raw && toIsoDate(raw)) || new Date().toISOString();
+  const day = dayOf(date);
   const name = label(entry, isIncome);
   const reference = firstText(entry?.entry_reference) || firstText(entry?.transaction_id);
 
@@ -167,7 +165,10 @@ export const normaliseTransaction = (entry) => {
     date,
     day,
     status,
-    bankRef: reference || fingerprint([status, day, amount.toFixed(2), isIncome ? 'CRDT' : 'DBIT', name]),
+    undated: !raw,
+    bankRef:
+      reference ||
+      fingerprint([status, raw ? day : 'undated', amount.toFixed(2), isIncome ? 'CRDT' : 'DBIT', name]),
     hasReference: Boolean(reference),
   };
 };
@@ -189,10 +190,12 @@ export const selectBankChanges = (entries, existing, fromDay, dismissedRefs) => 
   const byRef = new Map(fromBank.map((tx) => [tx.bankRef, tx]));
 
   const seen = new Map();
-  const incoming = (entries || [])
-    .map(normaliseTransaction)
+  const readable = (entries || []).map(normaliseTransaction);
+  const unreadable = readable.filter((entry) => !entry).length;
+
+  const incoming = readable
     .filter(Boolean)
-    .filter((entry) => !fromDay || entry.day >= fromDay)
+    .filter((entry) => entry.undated || !fromDay || entry.day >= fromDay)
     .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
     .map((entry) => {
       if (entry.hasReference) return entry;
@@ -240,7 +243,7 @@ export const selectBankChanges = (entries, existing, fromDay, dismissedRefs) => 
     create.push(entry);
   }
 
-  return { create, update, remove: incoming.length ? stillPending : [], skipped };
+  return { create, update, remove: incoming.length ? stillPending : [], skipped, unreadable };
 };
 
 export const transactionLabel = (transaction, t) => {

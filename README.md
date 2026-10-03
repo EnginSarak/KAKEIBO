@@ -8,7 +8,7 @@
 
 # KAKEIBO
 
-**Version 1.1.0**
+**Version 1.1.1**
 
 *A personal budgeting app inspired by the Japanese Kakeibo method,<br/>for dividing your money up before you spend it*
 
@@ -210,6 +210,15 @@ Data belonging to an account is stored per user and is only readable by that use
 ---
 
 ## Changelog
+
+### 1.1.1 (2026-10-03)
+
+#### Fixed
+- An entry a bank sends without any date was dropped on the way in, which hid a real
+  payment. Those entries are taken over and dated the day they turn up, and anything a
+  sync cannot read is now counted and reported instead of passing unnoticed.
+
+---
 
 ### 1.1.0 (2026-09-26)
 

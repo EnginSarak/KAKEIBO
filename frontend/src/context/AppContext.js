@@ -689,7 +689,7 @@ export function AppProvider({ children }) {
 
       const payload = await fetchBankTransactions(connection.bankAccountUid, fetchFrom);
 
-      const { create, update, remove, skipped } = selectBankChanges(
+      const { create, update, remove, skipped, unreadable } = selectBankChanges(
         payload.transactions,
         existing,
         fromDay,
@@ -712,6 +712,7 @@ export function AppProvider({ children }) {
         lastSyncAt: new Date().toISOString(),
         lastSyncCount: create.length,
         lastSyncTruncated: Boolean(payload.truncated),
+        lastSyncUnreadable: unreadable,
         lastSyncAccountId: connection.accountId,
         rateLimitedAt: null,
         ...(connection.importFrom ? {} : { importFrom: fromDay }),
@@ -723,6 +724,7 @@ export function AppProvider({ children }) {
         removed: remove.length,
         skipped,
         truncated: Boolean(payload.truncated),
+        unreadable,
         balance: applied ? applied.balance : null,
       };
     } catch (error) {
@@ -742,7 +744,7 @@ export function AppProvider({ children }) {
 
     setBankSyncing(true);
     try {
-      const totals = { imported: 0, booked: 0, removed: 0, skipped: 0, truncated: false, balance: null };
+      const totals = { imported: 0, booked: 0, removed: 0, skipped: 0, truncated: false, unreadable: 0, balance: null };
       let failure = null;
 
       for (const connection of targets) {
@@ -754,6 +756,7 @@ export function AppProvider({ children }) {
           totals.removed += result.removed;
           totals.skipped += result.skipped;
           totals.truncated = totals.truncated || result.truncated;
+          totals.unreadable += result.unreadable;
           if (result.balance !== null) totals.balance = result.balance;
         } catch (error) {
           failure = failure || error;
